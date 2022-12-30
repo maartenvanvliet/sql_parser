@@ -18,6 +18,13 @@ mod type_atoms {
         is_not_true,
         is_false,
         is_not_false,
+        in_list,
+        in_subquery,
+        in_unnest,
+        between,
+        like,
+        ilike,
+        similar_to,
         identifier,
         compound_identifier,
         composite_access
@@ -306,6 +313,68 @@ impl From<sqlparser::ast::Value> for Value {
         }
     }
 }
+
+#[derive(NifStruct)]
+#[rustler(encode)]
+#[module = "SqlParser.InList"]
+pub struct InList {
+    expr: Box<Expr>,
+    list: Vec<Expr>,
+    negated: bool,
+}
+#[derive(NifStruct)]
+#[rustler(encode)]
+#[module = "SqlParser.InSubquery"]
+pub struct InSubquery {
+    expr: Box<Expr>,
+    subquery: Box<Query>,
+    negated: bool,
+}
+#[derive(NifStruct)]
+#[rustler(encode)]
+#[module = "SqlParser.InUnnest"]
+pub struct InUnnest {
+    expr: Box<Expr>,
+    array_expr: Box<Expr>,
+    negated: bool,
+}
+
+#[derive(NifStruct)]
+#[rustler(encode)]
+#[module = "SqlParser.Between"]
+pub struct Between {
+    expr: Box<Expr>,
+    negated: bool,
+    low: Box<Expr>,
+    high: Box<Expr>,
+}
+#[derive(NifStruct)]
+#[rustler(encode)]
+#[module = "SqlParser.SimilarTo"]
+pub struct SimilarTo {
+    negated: bool,
+    expr: Box<Expr>,
+    pattern: Box<Expr>,
+    escape_char: Option<String>,
+}
+#[derive(NifStruct)]
+#[rustler(encode)]
+#[module = "SqlParser.Like"]
+pub struct Like {
+    negated: bool,
+    expr: Box<Expr>,
+    pattern: Box<Expr>,
+    escape_char: Option<String>,
+}
+#[derive(NifStruct)]
+#[rustler(encode)]
+#[module = "SqlParser.ILike"]
+pub struct ILike {
+    negated: bool,
+    expr: Box<Expr>,
+    pattern: Box<Expr>,
+    escape_char: Option<String>,
+}
 #[derive(NifUntaggedEnum)]
 #[rustler(encode)]
 pub enum ExprEnum {
@@ -313,7 +382,7 @@ pub enum ExprEnum {
     CompoundIdentifier(Vec<Ident>),
     // jsonaccess
     CompositeAccess(CompositeAccess),
-    BinaryOp(BinaryOp),
+    
     UnaryOp(UnaryOp),
     IsFalse(Box<Expr>),
     IsNotFalse(Box<Expr>),
@@ -323,13 +392,22 @@ pub enum ExprEnum {
     IsNotNull(Box<Expr>),
     IsUnknown(Box<Expr>),
     IsNotUnknown(Box<Expr>),
+    // IsDistinctFrom(Box<Expr>, Box<Expr>),
+    // IsNotDistinctFrom(Box<Expr>, Box<Expr>),
+    InList(InList),
+    InSubquery(InSubquery),
+    InUnnest(InUnnest),
+    Between(Between),
+    BinaryOp(BinaryOp),
+    Like(Like),
+    ILike(ILike),
+    SimilarTo(SimilarTo),
     AnyOp(Box<Expr>),
     AllOp(Box<Expr>),
     Nested(Box<Expr>),
     Value(Value),
     NotImplemented(Atom),
 }
-
 #[derive(NifStruct)]
 #[rustler(encode)]
 #[module = "SqlParser.Expr"]
@@ -397,12 +475,89 @@ impl Expr {
                 r#type: type_atoms::is_not_unknown(),
                 val: ExprEnum::IsNotUnknown(Box::new(Expr::new(*expr))),
             },
+            sqlparser::ast::Expr::InList{expr, list, negated} => Expr {
+                r#type: type_atoms::in_list(),
+                val: ExprEnum::InList(
+                    InList{
+                    expr: Box::new(Expr::new(*expr)),
+                    list: list.iter().map(|p| Expr::new(p.clone())).collect(),
+                    negated: negated,
+                    }
+                ),
+            },
+            sqlparser::ast::Expr::InSubquery{expr, subquery, negated} => Expr {
+                r#type: type_atoms::in_subquery(),
+                val: ExprEnum::InSubquery(
+                    InSubquery{
+                    expr: Box::new(Expr::new(*expr)),
+                    subquery: Box::new(Query::new(*subquery)),
+                    negated: negated,
+                    }
+                ),
+            },
+            sqlparser::ast::Expr::InUnnest{expr, array_expr, negated} => Expr {
+                r#type: type_atoms::in_subquery(),
+                val: ExprEnum::InUnnest(
+                    InUnnest{
+                    expr: Box::new(Expr::new(*expr)),
+                    array_expr: Box::new(Expr::new(*array_expr)),
+                    negated: negated,
+                    }
+                ),
+            },
+            sqlparser::ast::Expr::Between{expr, negated, low, high} => Expr {
+                r#type: type_atoms::in_subquery(),
+                val: ExprEnum::Between(
+                    Between{
+                        expr: Box::new(Expr::new(*expr)),
+                        negated: negated,
+                        low: Box::new(Expr::new(*low)),
+                        high: Box::new(Expr::new(*high)),
+                    }
+                ),
+            },
             sqlparser::ast::Expr::BinaryOp { left, op, right } => Expr {
                 r#type: type_atoms::binary_op(),
                 val: ExprEnum::BinaryOp(BinaryOp {
                     left: Box::new(Expr::new(*left)),
                     op: op.into(),
                     right: Box::new(Expr::new(*right)),
+                }),
+            },
+            sqlparser::ast::Expr::Like { negated, expr, pattern, escape_char } => Expr {
+                r#type: type_atoms::like(),
+                val: ExprEnum::Like(Like {
+                    expr: Box::new(Expr::new(*expr)),
+                    negated: negated,
+                    pattern: Box::new(Expr::new(*pattern)),
+                    escape_char: match escape_char {
+                        Some(c) => Some(c.to_string()),
+                        None => None
+                    },
+                }),
+            },
+            sqlparser::ast::Expr::ILike { negated, expr, pattern, escape_char } => Expr {
+                r#type: type_atoms::ilike(),
+                val: ExprEnum::ILike(ILike {
+                    expr: Box::new(Expr::new(*expr)),
+                    negated: negated,
+                    pattern: Box::new(Expr::new(*pattern)),
+                    escape_char: match escape_char {
+                        Some(c) => Some(c.to_string()),
+                        None => None
+                    },
+                }),
+            },
+            sqlparser::ast::Expr::SimilarTo { negated, expr, pattern, escape_char } => Expr {
+                r#type: type_atoms::similar_to(),
+                val: ExprEnum::SimilarTo(SimilarTo {
+                    expr: Box::new(Expr::new(*expr)),
+                    negated: negated,
+                    pattern: Box::new(Expr::new(*pattern)),
+                    escape_char: match escape_char {
+                        Some(c) => Some(c.to_string()),
+                        None => None
+                    },
                 }),
             },
             sqlparser::ast::Expr::AnyOp(expr) => Expr {
@@ -534,6 +689,13 @@ pub enum OffsetRows {
     None,
     Row,
     Rows,
+}
+
+impl Encoder for Box<Query> {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        let data = &**self;
+        data.encode(env)
+    }
 }
 
 impl Query {
