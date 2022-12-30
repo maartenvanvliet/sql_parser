@@ -1,4 +1,5 @@
 defmodule SqlParser.Parse do
+  @moduledoc false
   use Rustler,
     otp_app: :sql_parser,
     crate: :sqlparser_parse
