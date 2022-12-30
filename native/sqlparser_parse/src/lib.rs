@@ -11,9 +11,13 @@ fn run(sql: String) -> Result<(Atom, Document), Error> {
     //     Ok(ast) => Ok((atom::ok(), Document::new(ast))),
     //     Err(e) => Err(Error::Term(Box::new(e.to_string()))),
     // };
-    let dialect = GenericDialect {}; 
+    let dialect = GenericDialect {};
     let ast = match Parser::parse_sql(&dialect, sql.as_str()) {
-        Ok(ast) => Ok((atom::ok(), Document::new(ast))),
+        Ok(ast) => {
+            // println!("Parse results:\n{:#?}", ast);
+            Ok((atom::ok(), Document::new(ast)))
+        }
+
         Err(e) => Err(Error::Term(Box::new(e.to_string()))),
     };
     return ast;
