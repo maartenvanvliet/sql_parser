@@ -37,7 +37,8 @@ defmodule SqlParser.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:rustler, "~> 0.25"}
+      {:rustler, "~> 0.25"},
+      {:ex_doc, "~> 0.29"},
     ]
   end
 end
