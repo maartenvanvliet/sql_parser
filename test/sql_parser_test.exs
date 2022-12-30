@@ -4,78 +4,75 @@ defmodule SqlParserTest do
   alias SqlParser.Expr
   alias SqlParser.Ident
 
-  test "simple query" do
-    assert {:ok, %SqlParser.Document{} = doc} =
-             SqlParser.Parse.run("SELECT * FROM a WHERE b.a = c")
+  test "recursion limit" do
+    assert {:error, "sql parser error: recursion limit exceeded"} = SqlParser.parse("SELECT * FROM a WHERE b.a = c", recursion_limit: 1)
+  end
 
-    assert %SqlParser.Document{
-             statements: [
-               %SqlParser.Query{
-                 body: %SqlParser.Select{
-                   projection: [%SqlParser.Wildcard{}],
-                   selection: _,
-                   from: [
-                     %SqlParser.TableWithJoins{
-                       relation: %SqlParser.Table{
-                         name: %SqlParser.ObjectName{
-                           names: [%Ident{quote_style: nil, value: "a"}]
-                         }
-                       }
+  test "simple query" do
+    assert {:ok, [query]} = SqlParser.parse("SELECT * FROM a WHERE b.a = c")
+
+    assert %SqlParser.Query{
+             body: %SqlParser.Select{
+               projection: [%SqlParser.Wildcard{}],
+               selection: _,
+               from: [
+                 %SqlParser.TableWithJoins{
+                   relation: %SqlParser.Table{
+                     name: %SqlParser.ObjectName{
+                       names: [%Ident{quote_style: nil, value: "a"}]
                      }
-                   ]
+                   }
                  }
-               }
-             ]
-           } = doc
+               ]
+             }
+           } = query
   end
 
   test "update query" do
-    assert {:ok, %SqlParser.Document{statements: [:not_implemented]}} ==
-             SqlParser.Parse.run("UPDATE foo SET bar = 1")
+    assert {:ok, [:not_implemented]} ==
+             SqlParser.parse("UPDATE foo SET bar = 1")
   end
 
   test "group query" do
-    assert {:ok, %SqlParser.Document{}} = SqlParser.Parse.run("SELECT * FROM a group by e")
+    assert {:ok, [_query]} = SqlParser.parse("SELECT * FROM a group by e")
   end
 
   test "order by query" do
     assert {:ok,
-            %SqlParser.Document{
-              statements: [
-                %SqlParser.Query{
-                  body: %SqlParser.Select{
-                    distinct: false,
-                    from: [
-                      %SqlParser.TableWithJoins{
-                        relation: %SqlParser.Table{
-                          name: %SqlParser.ObjectName{
-                            names: [%Ident{quote_style: nil, value: "a"}]
-                          }
+            [
+              %SqlParser.Query{
+                body: %SqlParser.Select{
+                  distinct: false,
+                  from: [
+                    %SqlParser.TableWithJoins{
+                      relation: %SqlParser.Table{
+                        name: %SqlParser.ObjectName{
+                          names: [%Ident{quote_style: nil, value: "a"}]
                         }
                       }
-                    ],
-                    group_by: [],
-                    having: nil,
-                    projection: [%SqlParser.Wildcard{}],
-                    selection: nil,
-                    sort_by: []
-                  },
-                  order_by: [
-                    %SqlParser.OrderByExpr{
-                      expr: %Expr{
-                        type: :identifier,
-                        val: %Ident{quote_style: nil, value: "f"}
-                      },
-                      asc: nil,
-                      nulls_first: nil
                     }
                   ],
-                  limit: nil,
-                  offset: nil
-                }
-              ]
-            }} ==
-             SqlParser.Parse.run("SELECT * FROM a ORDER BY f")
+                  group_by: [],
+                  having: nil,
+                  projection: [%SqlParser.Wildcard{}],
+                  selection: nil,
+                  sort_by: []
+                },
+                order_by: [
+                  %SqlParser.OrderByExpr{
+                    expr: %Expr{
+                      type: :identifier,
+                      val: %Ident{quote_style: nil, value: "f"}
+                    },
+                    asc: nil,
+                    nulls_first: nil
+                  }
+                ],
+                limit: nil,
+                offset: nil
+              }
+            ]} ==
+             SqlParser.parse("SELECT * FROM a ORDER BY f")
   end
 
   @ops %{
@@ -109,24 +106,20 @@ defmodule SqlParserTest do
 
   test "ops work" do
     for {name, op} <- @ops do
-      assert {:ok, %SqlParser.Document{} = doc} =
-               SqlParser.Parse.run("SELECT * FROM a WHERE b.a #{op} d")
+      assert {:ok, [%SqlParser.Query{} = doc]} =
+               SqlParser.parse("SELECT * FROM a WHERE b.a #{op} d")
 
-      assert %SqlParser.Document{
-               statements: [
-                 %SqlParser.Query{
-                   body: %SqlParser.Select{
-                     selection: %Expr{
-                       type: :binary_op,
-                       val: %SqlParser.BinaryOp{
-                         left: _,
-                         op: ^name,
-                         right: _
-                       }
-                     }
+      assert %SqlParser.Query{
+               body: %SqlParser.Select{
+                 selection: %Expr{
+                   type: :binary_op,
+                   val: %SqlParser.BinaryOp{
+                     left: _,
+                     op: ^name,
+                     right: _
                    }
                  }
-               ]
+               }
              } = doc
     end
   end
@@ -148,18 +141,13 @@ defmodule SqlParserTest do
 
   test "expr work" do
     for {expected_selection, expr} <- @exprs do
-      assert {:ok, %SqlParser.Document{} = doc} =
-               SqlParser.Parse.run("SELECT c as b from a WHERE #{expr}")
+      assert {:ok, [query]} = SqlParser.parse("SELECT c as b from a WHERE #{expr}")
 
-      assert %SqlParser.Document{
-               statements: [
-                 %SqlParser.Query{
-                   body: %SqlParser.Select{
-                     selection: selection
-                   }
-                 }
-               ]
-             } = doc
+      assert %SqlParser.Query{
+               body: %SqlParser.Select{
+                 selection: selection
+               }
+             } = query
 
       assert expected_selection == selection
     end
