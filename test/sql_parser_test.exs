@@ -1,6 +1,8 @@
 defmodule SqlParserTest do
   use ExUnit.Case
   doctest SqlParser
+  alias SqlParser.Expr
+  alias SqlParser.Ident
 
   test "simple query" do
     assert {:ok, %SqlParser.Document{} = doc} =
@@ -11,19 +13,12 @@ defmodule SqlParserTest do
                %SqlParser.Query{
                  body: %SqlParser.Select{
                    projection: [%SqlParser.Wildcard{}],
-                   selection: %SqlParser.BinaryOp{
-                     left: [
-                       %SqlParser.Ident{quote_style: nil, value: "b"},
-                       %SqlParser.Ident{quote_style: nil, value: "a"}
-                     ],
-                     op: :eq,
-                     right: %SqlParser.Ident{quote_style: nil, value: "c"}
-                   },
+                   selection: _,
                    from: [
                      %SqlParser.TableWithJoins{
                        relation: %SqlParser.Table{
                          name: %SqlParser.ObjectName{
-                           names: [%SqlParser.Ident{quote_style: nil, value: "a"}]
+                           names: [%Ident{quote_style: nil, value: "a"}]
                          }
                        }
                      }
@@ -38,17 +33,51 @@ defmodule SqlParserTest do
     assert {:ok, %SqlParser.Document{statements: [:not_implemented]}} ==
              SqlParser.Parse.run("UPDATE foo SET bar = 1")
   end
-  test "group query" do
-    assert {:ok, %SqlParser.Document{}} =
-             SqlParser.Parse.run("SELECT * FROM a group by e")
 
+  test "group query" do
+    assert {:ok, %SqlParser.Document{}} = SqlParser.Parse.run("SELECT * FROM a group by e")
   end
 
   test "order by query" do
-    assert {:ok, %SqlParser.Document{} } ==
+    assert {:ok,
+            %SqlParser.Document{
+              statements: [
+                %SqlParser.Query{
+                  body: %SqlParser.Select{
+                    distinct: false,
+                    from: [
+                      %SqlParser.TableWithJoins{
+                        relation: %SqlParser.Table{
+                          name: %SqlParser.ObjectName{
+                            names: [%Ident{quote_style: nil, value: "a"}]
+                          }
+                        }
+                      }
+                    ],
+                    group_by: [],
+                    having: nil,
+                    projection: [%SqlParser.Wildcard{}],
+                    selection: nil,
+                    sort_by: []
+                  },
+                  order_by: [
+                    %SqlParser.OrderByExpr{
+                      expr: %Expr{
+                        type: :identifier,
+                        val: %Ident{quote_style: nil, value: "f"}
+                      },
+                      asc: nil,
+                      nulls_first: nil
+                    }
+                  ],
+                  limit: nil,
+                  offset: nil
+                }
+              ]
+            }} ==
              SqlParser.Parse.run("SELECT * FROM a ORDER BY f")
-
   end
+
   @ops %{
     plus: "+",
     minus: "-",
@@ -87,10 +116,13 @@ defmodule SqlParserTest do
                statements: [
                  %SqlParser.Query{
                    body: %SqlParser.Select{
-                     selection: %SqlParser.BinaryOp{
-                       left: _,
-                       op: ^name,
-                       right: _
+                     selection: %Expr{
+                       type: :binary_op,
+                       val: %SqlParser.BinaryOp{
+                         left: _,
+                         op: ^name,
+                         right: _
+                       }
                      }
                    }
                  }
@@ -100,60 +132,36 @@ defmodule SqlParserTest do
   end
 
   @exprs %{
-    # %SqlParser.BinaryOp{left: %SqlParser.Ident{quote_style: nil, value: "a"}, op: :eq, right: {:number, "1", false}} => "a = 1",
-
-    # %SqlParser.Ident{quote_style: nil, value: "a"} => "a",
-    # %SqlParser.Ident{quote_style: nil, value: "d"} => "b IS FALSE",
-    false => "c.d IS NULL",
-    # SqlParser.Ident => "d IS NOT FALSE",
-    # %SqlParser.Ident{quote_style: nil, value: "e"} => "e IS NOT TRUE",
-    # [%SqlParser.Ident{}, %SqlParser.Ident{}] => "table_alias.column"
-    # minus: "-",
-    # multiply: "*",
-    # divide: "/",
-    # modulo: "%",
-    # string_concat: "||",
-    # gt: ">",
-    # lt: "<",
-    # gt_eq: ">=",
-    # lt_eq: "<=",
-    # spaceship: "<=>",
-    # eq: "=",
-    # not_eq: "<>",
-    # and: "AND",
-    # or: "OR",
-    # xor: "XOR",
-    # bitwise_or: "|",
-    # bitwise_and: "&",
-    # bitwise_xor: "^",
-    # pg_bitwise_xor: "#",
-    # pg_bitwise_shift_left: "<<",
-    # pg_bitwise_shift_right: ">>",
-    # pg_regex_match: "~",
-    # pg_regex_imatch: "~*",
-    # pg_regex_not_match: "!~",
-    # pg_regex_not_imatch: "!~*"
+    %Expr{
+      type: :binary_op,
+      val: %SqlParser.BinaryOp{
+        left: %Expr{type: :identifier, val: %Ident{quote_style: nil, value: "a"}},
+        op: :eq,
+        right: %Expr{type: :value, val: {:number, "1", false}}
+      }
+    } => "a = 1",
+    %Expr{
+      type: :is_null,
+      val: %Expr{type: :identifier, val: %Ident{quote_style: nil, value: "c"}}
+    } => "c IS NULL"
   }
-  @tag :f
+
   test "expr work" do
     for {expected_selection, expr} <- @exprs do
       assert {:ok, %SqlParser.Document{} = doc} =
-               SqlParser.Parse.run("SELECT c as b from a WHERE #{expr}" |> dbg)
+               SqlParser.Parse.run("SELECT c as b from a WHERE #{expr}")
 
       assert %SqlParser.Document{
                statements: [
                  %SqlParser.Query{
                    body: %SqlParser.Select{
-                    projection: projection,
                      selection: selection
                    }
                  }
                ]
              } = doc
 
-             assert projection == 1
       assert expected_selection == selection
-      # assert match?(^module, selection)
     end
   end
 end

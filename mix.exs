@@ -22,7 +22,7 @@ defmodule SqlParser.MixProject do
       docs: [
         main: "SqlParser",
         source_url: @url,
-        canonical: "http://hexdocs.pm/sql_parser",
+        canonical: "http://hexdocs.pm/sql_parser"
       ]
     ]
   end
@@ -38,7 +38,7 @@ defmodule SqlParser.MixProject do
   defp deps do
     [
       {:rustler, "~> 0.25"},
-      {:ex_doc, "~> 0.29"},
+      {:ex_doc, "~> 0.29"}
     ]
   end
 end

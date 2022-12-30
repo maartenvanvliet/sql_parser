@@ -56,7 +56,7 @@ impl Document {
 #[rustler(encode)]
 pub enum SetExpr {
     Select(Select),
-    NotImplemented(Atom)
+    NotImplemented(Atom),
 }
 
 #[derive(NifStruct)]
@@ -93,16 +93,23 @@ pub struct TableWithJoins {
 impl TableWithJoins {
     pub fn new(ast: &sqlparser::ast::TableWithJoins) -> Self {
         let relation = match &ast.relation {
-            sqlparser::ast::TableFactor::Table{name, ..} => TableFactor::Table(Table {
+            sqlparser::ast::TableFactor::Table { name, .. } => TableFactor::Table(Table {
                 name: ObjectName {
                     names: name.0.iter().map(|p| Ident::from(p.clone())).collect(),
-                }
+                },
             }),
-            sqlparser::ast::TableFactor::NestedJoin{..} => TableFactor::NotImplemented(result_atoms::not_implemented()),
-            sqlparser::ast::TableFactor::Derived{..} => TableFactor::NotImplemented(result_atoms::not_implemented()),
-            sqlparser::ast::TableFactor::TableFunction{..} => TableFactor::NotImplemented(result_atoms::not_implemented()),
-            sqlparser::ast::TableFactor::UNNEST{..} => TableFactor::NotImplemented(result_atoms::not_implemented()),
-            
+            sqlparser::ast::TableFactor::NestedJoin { .. } => {
+                TableFactor::NotImplemented(result_atoms::not_implemented())
+            }
+            sqlparser::ast::TableFactor::Derived { .. } => {
+                TableFactor::NotImplemented(result_atoms::not_implemented())
+            }
+            sqlparser::ast::TableFactor::TableFunction { .. } => {
+                TableFactor::NotImplemented(result_atoms::not_implemented())
+            }
+            sqlparser::ast::TableFactor::UNNEST { .. } => {
+                TableFactor::NotImplemented(result_atoms::not_implemented())
+            }
         };
         Self {
             relation: relation, //TableFactor::Table(ast.relation),
@@ -137,7 +144,7 @@ pub struct ObjectName {
 #[derive(NifUntaggedEnum)]
 pub enum TableFactor {
     Table(Table),
-    NotImplemented(Atom)
+    NotImplemented(Atom),
 }
 #[derive(NifStruct)]
 #[module = "SqlParser.Table"]
@@ -320,7 +327,7 @@ pub enum ExprEnum {
     AllOp(Box<Expr>),
     Nested(Box<Expr>),
     Value(Value),
-    NotImplemented(Atom)
+    NotImplemented(Atom),
 }
 
 #[derive(NifStruct)]
@@ -422,9 +429,9 @@ impl Expr {
                 val: ExprEnum::Value(value.into()),
             },
 
-            _ => Expr{
+            _ => Expr {
                 r#type: result_atoms::not_implemented(),
-                val: ExprEnum::NotImplemented(result_atoms::not_implemented())
+                val: ExprEnum::NotImplemented(result_atoms::not_implemented()),
             },
         }
     }
@@ -498,7 +505,7 @@ impl Select {
 #[module = "SqlParser.Offset"]
 pub struct Offset {
     pub value: Expr,
-    pub rows: OffsetRows
+    pub rows: OffsetRows,
 }
 
 #[derive(NifStruct)]
@@ -569,5 +576,5 @@ impl Query {
 #[rustler(encode)]
 pub enum Statement {
     Query(Query), // Fragment(FragmentDefinition),
-    NotImplemented(Atom)
+    NotImplemented(Atom),
 }
