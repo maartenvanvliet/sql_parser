@@ -336,7 +336,9 @@ impl From<sqlparser::ast::Value> for Value {
         match value {
             sqlparser::ast::Value::Number(num, is_float) => Self::Number(num, is_float),
             sqlparser::ast::Value::SingleQuotedString(string) => Self::SingleQuotedString(string),
-            // sqlparser::ast::Value::DollarQuotedString(dollar_quoted_string) => Self::DollarQuotedString(dollar_quoted_string),
+            sqlparser::ast::Value::DollarQuotedString(_dollar_quoted_string) => {
+                Self::NotImplemented
+            }
             sqlparser::ast::Value::EscapedStringLiteral(string) => {
                 Self::EscapedStringLiteral(string)
             }
@@ -349,7 +351,6 @@ impl From<sqlparser::ast::Value> for Value {
             sqlparser::ast::Value::Null => Self::Null,
             sqlparser::ast::Value::Placeholder(placeholder) => Self::Placeholder(placeholder),
             sqlparser::ast::Value::UnQuotedString(string) => Self::UnQuotedString(string),
-            _ => Self::NotImplemented,
         }
     }
 }
@@ -647,8 +648,39 @@ impl Expr {
                 r#type: type_atoms::value(),
                 val: ExprEnum::Value(value.into()),
             },
-
-            _ => Expr {
+            sqlparser::ast::Expr::SafeCast { .. }
+            | sqlparser::ast::Expr::TryCast { .. }
+            | sqlparser::ast::Expr::Cast { .. }
+            | sqlparser::ast::Expr::JsonAccess { .. }
+            | sqlparser::ast::Expr::IsDistinctFrom(_, _)
+            | sqlparser::ast::Expr::AtTimeZone { .. }
+            | sqlparser::ast::Expr::Extract { .. }
+            | sqlparser::ast::Expr::Ceil { .. }
+            | sqlparser::ast::Expr::Floor { .. }
+            | sqlparser::ast::Expr::Position { .. }
+            | sqlparser::ast::Expr::Substring { .. }
+            | sqlparser::ast::Expr::Trim { .. }
+            | sqlparser::ast::Expr::Overlay { .. }
+            | sqlparser::ast::Expr::Collate { .. }
+            | sqlparser::ast::Expr::TypedString { .. }
+            | sqlparser::ast::Expr::MapAccess { .. }
+            | sqlparser::ast::Expr::Function(_)
+            | sqlparser::ast::Expr::AggregateExpressionWithFilter  { .. }
+            | sqlparser::ast::Expr::Case { .. }
+            | sqlparser::ast::Expr::Exists { .. }
+            | sqlparser::ast::Expr::Subquery { .. }
+            | sqlparser::ast::Expr::ArraySubquery(_)
+            | sqlparser::ast::Expr::ListAgg(_)
+            | sqlparser::ast::Expr::ArrayAgg(_)
+            | sqlparser::ast::Expr::GroupingSets(_)
+            | sqlparser::ast::Expr::Cube(_)
+            | sqlparser::ast::Expr::Rollup(_)
+            | sqlparser::ast::Expr::Tuple(_)
+            | sqlparser::ast::Expr::ArrayIndex{ .. }
+            | sqlparser::ast::Expr::Array(_)
+            | sqlparser::ast::Expr::Interval{ .. }
+            | sqlparser::ast::Expr::MatchAgainst{ .. }
+            | sqlparser::ast::Expr::IsNotDistinctFrom(_, _) => Expr {
                 r#type: result_atoms::not_implemented(),
                 val: ExprEnum::NotImplemented(result_atoms::not_implemented()),
             },
@@ -693,7 +725,9 @@ impl Select {
                             alias: Ident::from(alias.clone()),
                         })
                     }
-                    _ => SelectItem::NotImplemented(result_atoms::not_implemented()),
+                    sqlparser::ast::SelectItem::QualifiedWildcard(_, _) => {
+                        SelectItem::NotImplemented(result_atoms::not_implemented())
+                    }
                 })
                 .collect(),
             from: ast.from.iter().map(|p| TableWithJoins::new(p)).collect(),
@@ -793,7 +827,9 @@ impl From<sqlparser::ast::SetExpr> for SetExpr {
                 left: Box::new((*left).into()),
                 right: Box::new((*right).into()),
             }),
-            _ => SetExpr::NotImplemented(result_atoms::not_implemented()),
+            sqlparser::ast::SetExpr::Insert(_) | sqlparser::ast::SetExpr::Table(_) => {
+                SetExpr::NotImplemented(result_atoms::not_implemented())
+            }
         }
     }
 }
@@ -833,6 +869,6 @@ impl Query {
 #[derive(NifUntaggedEnum)]
 #[rustler(encode)]
 pub enum Statement {
-    Query(Query), // Fragment(FragmentDefinition),
+    Query(Query),
     NotImplemented(Atom),
 }
