@@ -29,9 +29,12 @@ pub enum RecursionLimit {
     Limit(usize),
 }
 
-
 #[rustler::nif]
-fn parse_statements(sql: String, dialect: Dialect, recursion_limit: RecursionLimit) -> Result<(Atom, Document), Error> {
+fn parse_statements(
+    sql: String,
+    dialect: Dialect,
+    recursion_limit: RecursionLimit,
+) -> Result<(Atom, Document), Error> {
     let sql_dialect: Box<dyn sqlparser::dialect::Dialect> = match dialect {
         Dialect::Ansi => Box::new(sqlparser::dialect::AnsiDialect {}),
         Dialect::BigQuery => Box::new(sqlparser::dialect::BigQueryDialect {}),
@@ -43,22 +46,20 @@ fn parse_statements(sql: String, dialect: Dialect, recursion_limit: RecursionLim
         Dialect::Postgres => Box::new(sqlparser::dialect::PostgreSqlDialect {}),
         Dialect::Redshift => Box::new(sqlparser::dialect::RedshiftSqlDialect {}),
         Dialect::Sqlite => Box::new(sqlparser::dialect::SQLiteDialect {}),
-        Dialect::Snowflake => Box::new(sqlparser::dialect::SnowflakeDialect {},) 
-      };
-      
+        Dialect::Snowflake => Box::new(sqlparser::dialect::SnowflakeDialect {}),
+    };
+
     let mut parser = Parser::new(&*sql_dialect);
     parser = match recursion_limit {
         RecursionLimit::Infinity => parser,
         RecursionLimit::Limit(limit) => parser.with_recursion_limit(limit),
     };
-    
+
     let ast = match parser.try_with_sql(sql.as_str()) {
-        Ok(mut p) => {
-            match p.parse_statements() {
-                Ok(ast) => Ok((atom::ok(), Document::new(ast))),
-                Err(e) => Err(Error::Term(Box::new(e.to_string()))),
-            }
-        }
+        Ok(mut p) => match p.parse_statements() {
+            Ok(ast) => Ok((atom::ok(), Document::new(ast))),
+            Err(e) => Err(Error::Term(Box::new(e.to_string()))),
+        },
 
         Err(e) => Err(Error::Term(Box::new(e.to_string()))),
     };
