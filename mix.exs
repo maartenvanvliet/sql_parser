@@ -38,7 +38,7 @@ defmodule SqlParser.MixProject do
   defp deps do
     [
       {:rustler, "~> 0.25"},
-      {:ex_doc, "~> 0.29"}
+      {:ex_doc, "~> 0.29", only: [:dev, :test]}
     ]
   end
 end
