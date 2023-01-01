@@ -4,9 +4,14 @@ defmodule SqlParser do
   """
 
   @doc """
+  Parses a SQL query into an AST.
+
+  Optionally accepts a dialect and a recursion limit.
+
   Examples
 
-    iex>  {:ok, [%SqlParser.Query{}]} = SqlParser.parse("SELECT * FROM foo", :postgres)
+    iex>  {:ok, [%SqlParser.Query{}]} = SqlParser.parse("SELECT * FROM foo", dialect: :postgres, recursion_limit: 10)
+
     iex>  {:ok, [%SqlParser.Query{}]} = SqlParser.parse("SELECT * FROM foo")
   """
   def parse(sql, opts \\ [])
