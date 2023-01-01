@@ -30,6 +30,10 @@ defmodule SqlParser.OrderByExpr do
   defstruct [:expr, :asc, :nulls_first]
 end
 
+defmodule SqlParser.JoinOperator do
+  defstruct [:operator, :kind]
+end
+
 defmodule SqlParser.BinaryOp do
   defstruct [:left, :op, :right]
 end
@@ -39,7 +43,11 @@ defmodule SqlParser.Wildcard do
 end
 
 defmodule SqlParser.TableWithJoins do
-  defstruct [:relation]
+  defstruct [:relation, :joins]
+end
+
+defmodule SqlParser.Join do
+  defstruct [:join_operator, :relation]
 end
 
 defmodule SqlParser.Ident do

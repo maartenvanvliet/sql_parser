@@ -5,7 +5,8 @@ defmodule SqlParserTest do
   alias SqlParser.Ident
 
   test "recursion limit" do
-    assert {:error, "sql parser error: recursion limit exceeded"} = SqlParser.parse("SELECT * FROM a WHERE b.a = c", recursion_limit: 1)
+    assert {:error, "sql parser error: recursion limit exceeded"} =
+             SqlParser.parse("SELECT * FROM a WHERE b.a = c", recursion_limit: 1)
   end
 
   test "simple query" do
@@ -45,6 +46,7 @@ defmodule SqlParserTest do
                   distinct: false,
                   from: [
                     %SqlParser.TableWithJoins{
+                      joins: [],
                       relation: %SqlParser.Table{
                         name: %SqlParser.ObjectName{
                           names: [%Ident{quote_style: nil, value: "a"}]
@@ -122,6 +124,61 @@ defmodule SqlParserTest do
                }
              } = doc
     end
+  end
+
+  test "join work" do
+    assert {:ok, [%SqlParser.Query{} = doc]} =
+             SqlParser.parse("SELECT * FROM a JOIN b on a.id = b.a_id WHERE b.a = d")
+
+    assert %SqlParser.Query{
+             body: %SqlParser.Select{
+               from: [
+                 %SqlParser.TableWithJoins{
+                   relation: %SqlParser.Table{
+                     name: %SqlParser.ObjectName{
+                       names: [%SqlParser.Ident{quote_style: nil, value: "a"}]
+                     }
+                   },
+                   joins: [
+                     %SqlParser.Join{
+                       join_operator: %SqlParser.JoinOperator{
+                         operator: %{
+                           __struct__: SqlParser.JoinConstraint,
+                           constraint: %SqlParser.Expr{
+                             type: :binary_op,
+                             val: %SqlParser.BinaryOp{
+                               left: %SqlParser.Expr{
+                                 type: :compound_identifier,
+                                 val: [
+                                   %SqlParser.Ident{quote_style: nil, value: "a"},
+                                   %SqlParser.Ident{quote_style: nil, value: "id"}
+                                 ]
+                               },
+                               op: :eq,
+                               right: %SqlParser.Expr{
+                                 type: :compound_identifier,
+                                 val: [
+                                   %SqlParser.Ident{quote_style: nil, value: "b"},
+                                   %SqlParser.Ident{quote_style: nil, value: "a_id"}
+                                 ]
+                               }
+                             }
+                           },
+                           kind: :on
+                         },
+                         kind: :inner
+                       },
+                       relation: %SqlParser.Table{
+                         name: %SqlParser.ObjectName{
+                           names: [%SqlParser.Ident{quote_style: nil, value: "b"}]
+                         }
+                       }
+                     }
+                   ]
+                 }
+               ]
+             }
+           } = doc
   end
 
   @exprs %{

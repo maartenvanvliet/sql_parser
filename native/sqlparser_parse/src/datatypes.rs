@@ -122,6 +122,137 @@ pub struct ExprWithAlias {
     expr: Expr,
     alias: Ident,
 }
+#[derive(NifStruct)]
+#[rustler(encode)]
+#[module = "SqlParser.JoinConstraint"]
+pub struct JoinConstraint {
+    constraint: JoinConstraintEnum,
+    kind: Atom,
+}
+
+mod join_constraints_atoms {
+    rustler::atoms! {
+        on,
+        using,
+        natural,
+        none
+    }
+}
+
+#[derive(NifUntaggedEnum)]
+#[rustler(encode)]
+pub enum JoinConstraintEnum {
+    On(Expr),
+    Using(Vec<Ident>),
+    Natural(Atom),
+    None(Atom),
+}
+impl From<sqlparser::ast::JoinConstraint> for JoinConstraint {
+    fn from(join_constraint: sqlparser::ast::JoinConstraint) -> Self {
+        match join_constraint {
+            sqlparser::ast::JoinConstraint::On(expr) => JoinConstraint {
+                constraint: JoinConstraintEnum::On(Expr::new(expr)),
+                kind: join_constraints_atoms::on(),
+            },
+            sqlparser::ast::JoinConstraint::Using(ident) => JoinConstraint {
+                constraint: JoinConstraintEnum::Using(
+                    ident.iter().map(|i| Ident::from(i.clone())).collect(),
+                ),
+                kind: join_constraints_atoms::using(),
+            },
+            sqlparser::ast::JoinConstraint::Natural => JoinConstraint {
+                constraint: JoinConstraintEnum::Natural(join_constraints_atoms::natural()),
+                kind: join_constraints_atoms::natural(),
+            },
+            sqlparser::ast::JoinConstraint::None => JoinConstraint {
+                constraint: JoinConstraintEnum::None(join_constraints_atoms::none()),
+                kind: join_constraints_atoms::none(),
+            },
+        }
+    }
+}
+
+#[derive(NifStruct)]
+#[rustler(encode)]
+#[module = "SqlParser.JoinOperator"]
+pub struct JoinOperator {
+    operator: JoinOperatorEnum,
+    kind: Atom,
+}
+
+mod join_operator_atoms {
+    rustler::atoms! {
+        inner,
+        left_outer,
+        right_outer,
+        full_outer,
+        cross_join,
+        left_semi,
+        right_semi,
+        left_anti,
+        right_anti,
+        cross_apply,
+        outer_apply
+    }
+}
+#[derive(NifUntaggedEnum)]
+#[rustler(encode)]
+pub enum JoinOperatorEnum {
+    Inner(JoinConstraint),
+    LeftOuter(JoinConstraint),
+    RightOuter(JoinConstraint),
+    FullOuter(JoinConstraint),
+    // CrossJoin,
+    LeftSemi(JoinConstraint),
+    RightSemi(JoinConstraint),
+    LeftAnti(JoinConstraint),
+    RightAnti(JoinConstraint),
+    // CrossApply,
+    // OuterApply,
+}
+
+impl From<sqlparser::ast::JoinOperator> for JoinOperator {
+    fn from(join_operator: sqlparser::ast::JoinOperator) -> Self {
+        match join_operator {
+            sqlparser::ast::JoinOperator::Inner(constraint) => JoinOperator {
+                kind: join_operator_atoms::inner(),
+                operator: JoinOperatorEnum::Inner(JoinConstraint::from(constraint)),
+            },
+            sqlparser::ast::JoinOperator::LeftOuter(constraint) => JoinOperator {
+                kind: join_operator_atoms::left_outer(),
+                operator: JoinOperatorEnum::LeftOuter(JoinConstraint::from(constraint)),
+            },
+            sqlparser::ast::JoinOperator::RightOuter(constraint) => JoinOperator {
+                kind: join_operator_atoms::right_outer(),
+                operator: JoinOperatorEnum::RightOuter(JoinConstraint::from(constraint)),
+            },
+            sqlparser::ast::JoinOperator::FullOuter(constraint) => JoinOperator {
+                kind: join_operator_atoms::full_outer(),
+                operator: JoinOperatorEnum::FullOuter(JoinConstraint::from(constraint)),
+            },
+            // sqlparser::ast::JoinOperator::CrossJoin => JoinOperator{ operator: JoinOperatorEnum::CrossJoin, },
+            sqlparser::ast::JoinOperator::LeftSemi(constraint) => JoinOperator {
+                kind: join_operator_atoms::left_semi(),
+                operator: JoinOperatorEnum::LeftSemi(JoinConstraint::from(constraint)),
+            },
+            sqlparser::ast::JoinOperator::RightSemi(constraint) => JoinOperator {
+                kind: join_operator_atoms::right_semi(),
+                operator: JoinOperatorEnum::RightSemi(JoinConstraint::from(constraint)),
+            },
+            sqlparser::ast::JoinOperator::LeftAnti(constraint) => JoinOperator {
+                kind: join_operator_atoms::left_anti(),
+                operator: JoinOperatorEnum::LeftAnti(JoinConstraint::from(constraint)),
+            },
+            sqlparser::ast::JoinOperator::RightAnti(constraint) => JoinOperator {
+                kind: join_operator_atoms::right_anti(),
+                operator: JoinOperatorEnum::RightAnti(JoinConstraint::from(constraint)),
+            },
+            _ => todo!(),
+            // sqlparser::ast::JoinOperator::CrossApply => JoinOperator{ operator: JoinOperatorEnum::CrossApply, },
+            // sqlparser::ast::JoinOperator::OuterApply => JoinOperator{ operator: JoinOperatorEnum::OuterApply },
+        }
+    }
+}
 
 #[derive(NifUntaggedEnum)]
 #[rustler(encode)]
@@ -133,33 +264,32 @@ pub enum SelectItem {
 }
 #[derive(NifStruct)]
 #[rustler(encode)]
+#[module = "SqlParser.Join"]
+pub struct Join {
+    pub relation: TableFactor,
+    pub join_operator: JoinOperator,
+}
+
+#[derive(NifStruct)]
+#[rustler(encode)]
 #[module = "SqlParser.TableWithJoins"]
 pub struct TableWithJoins {
-    pub relation: TableFactor, // pub joins: Vec<Join>,
+    pub relation: TableFactor,
+    pub joins: Vec<Join>,
 }
 impl TableWithJoins {
     pub fn new(ast: &sqlparser::ast::TableWithJoins) -> Self {
-        let relation = match &ast.relation {
-            sqlparser::ast::TableFactor::Table { name, .. } => TableFactor::Table(Table {
-                name: ObjectName {
-                    names: name.0.iter().map(|p| Ident::from(p.clone())).collect(),
-                },
-            }),
-            sqlparser::ast::TableFactor::NestedJoin { .. } => {
-                TableFactor::NotImplemented(result_atoms::not_implemented())
-            }
-            sqlparser::ast::TableFactor::Derived { .. } => {
-                TableFactor::NotImplemented(result_atoms::not_implemented())
-            }
-            sqlparser::ast::TableFactor::TableFunction { .. } => {
-                TableFactor::NotImplemented(result_atoms::not_implemented())
-            }
-            sqlparser::ast::TableFactor::UNNEST { .. } => {
-                TableFactor::NotImplemented(result_atoms::not_implemented())
-            }
-        };
+        let relation = TableFactor::from(ast.relation.clone());
         Self {
-            relation: relation, //TableFactor::Table(ast.relation),
+            relation: relation,
+            joins: ast
+                .joins
+                .iter()
+                .map(|j| Join {
+                    join_operator: JoinOperator::from(j.join_operator.clone()),
+                    relation: TableFactor::from(j.relation.clone()),
+                })
+                .collect(),
         }
     }
 }
@@ -193,6 +323,31 @@ pub enum TableFactor {
     Table(Table),
     NotImplemented(Atom),
 }
+
+impl From<sqlparser::ast::TableFactor> for TableFactor {
+    fn from(table_factor: sqlparser::ast::TableFactor) -> Self {
+        match table_factor {
+            sqlparser::ast::TableFactor::Table { name, .. } => TableFactor::Table(Table {
+                name: ObjectName {
+                    names: name.0.iter().map(|p| Ident::from(p.clone())).collect(),
+                },
+            }),
+            sqlparser::ast::TableFactor::NestedJoin { .. } => {
+                TableFactor::NotImplemented(result_atoms::not_implemented())
+            }
+            sqlparser::ast::TableFactor::Derived { .. } => {
+                TableFactor::NotImplemented(result_atoms::not_implemented())
+            }
+            sqlparser::ast::TableFactor::TableFunction { .. } => {
+                TableFactor::NotImplemented(result_atoms::not_implemented())
+            }
+            sqlparser::ast::TableFactor::UNNEST { .. } => {
+                TableFactor::NotImplemented(result_atoms::not_implemented())
+            }
+        }
+    }
+}
+
 #[derive(NifStruct)]
 #[module = "SqlParser.Table"]
 pub struct Table {
@@ -665,7 +820,7 @@ impl Expr {
             | sqlparser::ast::Expr::TypedString { .. }
             | sqlparser::ast::Expr::MapAccess { .. }
             | sqlparser::ast::Expr::Function(_)
-            | sqlparser::ast::Expr::AggregateExpressionWithFilter  { .. }
+            | sqlparser::ast::Expr::AggregateExpressionWithFilter { .. }
             | sqlparser::ast::Expr::Case { .. }
             | sqlparser::ast::Expr::Exists { .. }
             | sqlparser::ast::Expr::Subquery { .. }
@@ -676,10 +831,10 @@ impl Expr {
             | sqlparser::ast::Expr::Cube(_)
             | sqlparser::ast::Expr::Rollup(_)
             | sqlparser::ast::Expr::Tuple(_)
-            | sqlparser::ast::Expr::ArrayIndex{ .. }
+            | sqlparser::ast::Expr::ArrayIndex { .. }
             | sqlparser::ast::Expr::Array(_)
-            | sqlparser::ast::Expr::Interval{ .. }
-            | sqlparser::ast::Expr::MatchAgainst{ .. }
+            | sqlparser::ast::Expr::Interval { .. }
+            | sqlparser::ast::Expr::MatchAgainst { .. }
             | sqlparser::ast::Expr::IsNotDistinctFrom(_, _) => Expr {
                 r#type: result_atoms::not_implemented(),
                 val: ExprEnum::NotImplemented(result_atoms::not_implemented()),
