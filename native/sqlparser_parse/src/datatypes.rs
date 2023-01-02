@@ -470,29 +470,49 @@ pub struct BinaryOp {
     op: BinaryOperator,
     right: Box<Expr>,
 }
+#[derive(NifStruct)]
+#[rustler(encode)]
+#[module = "SqlParser.Number"]
+pub struct Number {
+    value: String,
+    is_float: bool
+}
+#[derive(NifStruct)]
+#[rustler(encode)]
+#[module = "SqlParser.Boolean"]
+pub struct Boolean {
+    value: bool,
+}
 
-#[derive(NifTaggedEnum)]
+#[derive(NifStruct)]
+#[rustler(encode)]
+#[module = "SqlParser.Null"]
+pub struct Null {
+}
+
+#[derive(NifUntaggedEnum)]
+#[rustler(encode)]
 pub enum Value {
-    Number(String, bool),
+    Number(Number),
     SingleQuotedString(String),
     // DollarQuotedString(DollarQuotedString),
     EscapedStringLiteral(String),
     NationalStringLiteral(String),
     HexStringLiteral(String),
     DoubleQuotedString(String),
-    Boolean(bool),
-    Null,
+    Boolean(Boolean),
+    Null(Null),
     Placeholder(String),
     UnQuotedString(String),
-    NotImplemented,
+    NotImplemented(Atom),
 }
 impl From<sqlparser::ast::Value> for Value {
     fn from(value: sqlparser::ast::Value) -> Self {
         match value {
-            sqlparser::ast::Value::Number(num, is_float) => Self::Number(num, is_float),
+            sqlparser::ast::Value::Number(num, is_float) => Self::Number(Number{ value: num, is_float: is_float}),
             sqlparser::ast::Value::SingleQuotedString(string) => Self::SingleQuotedString(string),
             sqlparser::ast::Value::DollarQuotedString(_dollar_quoted_string) => {
-                Self::NotImplemented
+                Self::NotImplemented(result_atoms::not_implemented())
             }
             sqlparser::ast::Value::EscapedStringLiteral(string) => {
                 Self::EscapedStringLiteral(string)
@@ -502,8 +522,8 @@ impl From<sqlparser::ast::Value> for Value {
             }
             sqlparser::ast::Value::HexStringLiteral(string) => Self::HexStringLiteral(string),
             sqlparser::ast::Value::DoubleQuotedString(string) => Self::DoubleQuotedString(string),
-            sqlparser::ast::Value::Boolean(boolean) => Self::Boolean(boolean),
-            sqlparser::ast::Value::Null => Self::Null,
+            sqlparser::ast::Value::Boolean(boolean) => Self::Boolean(Boolean{value: boolean}),
+            sqlparser::ast::Value::Null => Self::Null(Null{}),
             sqlparser::ast::Value::Placeholder(placeholder) => Self::Placeholder(placeholder),
             sqlparser::ast::Value::UnQuotedString(string) => Self::UnQuotedString(string),
         }
@@ -609,7 +629,7 @@ pub enum ExprEnum {
 #[module = "SqlParser.Expr"]
 pub struct Expr {
     r#type: Atom,
-    val: ExprEnum,
+    value: ExprEnum,
 }
 
 impl Encoder for Box<Expr> {
@@ -624,52 +644,52 @@ impl Expr {
         match ast {
             sqlparser::ast::Expr::Identifier(ident) => Expr {
                 r#type: type_atoms::identifier(),
-                val: ExprEnum::Identifier(Ident::from(ident)),
+                value: ExprEnum::Identifier(Ident::from(ident)),
             },
             sqlparser::ast::Expr::CompoundIdentifier(idents) => Expr {
                 r#type: type_atoms::compound_identifier(),
-                val: ExprEnum::CompoundIdentifier(
+                value: ExprEnum::CompoundIdentifier(
                     idents.iter().map(|p| Ident::from(p.clone())).collect(),
                 ),
             },
             sqlparser::ast::Expr::CompositeAccess { expr, key } => Expr {
                 r#type: type_atoms::composite_access(),
-                val: ExprEnum::CompositeAccess(CompositeAccess {
+                value: ExprEnum::CompositeAccess(CompositeAccess {
                     expr: Box::new(Expr::new(*expr)),
                     key: Ident::from(key),
                 }),
             },
             sqlparser::ast::Expr::IsFalse(expr) => Expr {
                 r#type: type_atoms::is_false(),
-                val: ExprEnum::IsFalse(Box::new(Expr::new(*expr))),
+                value: ExprEnum::IsFalse(Box::new(Expr::new(*expr))),
             },
             sqlparser::ast::Expr::IsNotFalse(expr) => Expr {
                 r#type: type_atoms::is_not_false(),
-                val: ExprEnum::IsNotFalse(Box::new(Expr::new(*expr))),
+                value: ExprEnum::IsNotFalse(Box::new(Expr::new(*expr))),
             },
             sqlparser::ast::Expr::IsTrue(expr) => Expr {
                 r#type: type_atoms::is_true(),
-                val: ExprEnum::IsTrue(Box::new(Expr::new(*expr))),
+                value: ExprEnum::IsTrue(Box::new(Expr::new(*expr))),
             },
             sqlparser::ast::Expr::IsNotTrue(expr) => Expr {
                 r#type: type_atoms::is_not_true(),
-                val: ExprEnum::IsNotTrue(Box::new(Expr::new(*expr))),
+                value: ExprEnum::IsNotTrue(Box::new(Expr::new(*expr))),
             },
             sqlparser::ast::Expr::IsNull(expr) => Expr {
                 r#type: type_atoms::is_null(),
-                val: ExprEnum::IsNull(Box::new(Expr::new(*expr))),
+                value: ExprEnum::IsNull(Box::new(Expr::new(*expr))),
             },
             sqlparser::ast::Expr::IsNotNull(expr) => Expr {
                 r#type: type_atoms::is_not_null(),
-                val: ExprEnum::IsNotNull(Box::new(Expr::new(*expr))),
+                value: ExprEnum::IsNotNull(Box::new(Expr::new(*expr))),
             },
             sqlparser::ast::Expr::IsUnknown(expr) => Expr {
                 r#type: type_atoms::is_unknown(),
-                val: ExprEnum::IsUnknown(Box::new(Expr::new(*expr))),
+                value: ExprEnum::IsUnknown(Box::new(Expr::new(*expr))),
             },
             sqlparser::ast::Expr::IsNotUnknown(expr) => Expr {
                 r#type: type_atoms::is_not_unknown(),
-                val: ExprEnum::IsNotUnknown(Box::new(Expr::new(*expr))),
+                value: ExprEnum::IsNotUnknown(Box::new(Expr::new(*expr))),
             },
             sqlparser::ast::Expr::InList {
                 expr,
@@ -677,7 +697,7 @@ impl Expr {
                 negated,
             } => Expr {
                 r#type: type_atoms::in_list(),
-                val: ExprEnum::InList(InList {
+                value: ExprEnum::InList(InList {
                     expr: Box::new(Expr::new(*expr)),
                     list: list.iter().map(|p| Expr::new(p.clone())).collect(),
                     negated: negated,
@@ -689,7 +709,7 @@ impl Expr {
                 negated,
             } => Expr {
                 r#type: type_atoms::in_subquery(),
-                val: ExprEnum::InSubquery(InSubquery {
+                value: ExprEnum::InSubquery(InSubquery {
                     expr: Box::new(Expr::new(*expr)),
                     subquery: Box::new(Query::new(*subquery)),
                     negated: negated,
@@ -701,7 +721,7 @@ impl Expr {
                 negated,
             } => Expr {
                 r#type: type_atoms::in_subquery(),
-                val: ExprEnum::InUnnest(InUnnest {
+                value: ExprEnum::InUnnest(InUnnest {
                     expr: Box::new(Expr::new(*expr)),
                     array_expr: Box::new(Expr::new(*array_expr)),
                     negated: negated,
@@ -714,7 +734,7 @@ impl Expr {
                 high,
             } => Expr {
                 r#type: type_atoms::in_subquery(),
-                val: ExprEnum::Between(Between {
+                value: ExprEnum::Between(Between {
                     expr: Box::new(Expr::new(*expr)),
                     negated: negated,
                     low: Box::new(Expr::new(*low)),
@@ -723,7 +743,7 @@ impl Expr {
             },
             sqlparser::ast::Expr::BinaryOp { left, op, right } => Expr {
                 r#type: type_atoms::binary_op(),
-                val: ExprEnum::BinaryOp(BinaryOp {
+                value: ExprEnum::BinaryOp(BinaryOp {
                     left: Box::new(Expr::new(*left)),
                     op: op.into(),
                     right: Box::new(Expr::new(*right)),
@@ -736,7 +756,7 @@ impl Expr {
                 escape_char,
             } => Expr {
                 r#type: type_atoms::like(),
-                val: ExprEnum::Like(Like {
+                value: ExprEnum::Like(Like {
                     expr: Box::new(Expr::new(*expr)),
                     negated: negated,
                     pattern: Box::new(Expr::new(*pattern)),
@@ -753,7 +773,7 @@ impl Expr {
                 escape_char,
             } => Expr {
                 r#type: type_atoms::ilike(),
-                val: ExprEnum::ILike(ILike {
+                value: ExprEnum::ILike(ILike {
                     expr: Box::new(Expr::new(*expr)),
                     negated: negated,
                     pattern: Box::new(Expr::new(*pattern)),
@@ -770,7 +790,7 @@ impl Expr {
                 escape_char,
             } => Expr {
                 r#type: type_atoms::similar_to(),
-                val: ExprEnum::SimilarTo(SimilarTo {
+                value: ExprEnum::SimilarTo(SimilarTo {
                     expr: Box::new(Expr::new(*expr)),
                     negated: negated,
                     pattern: Box::new(Expr::new(*pattern)),
@@ -782,26 +802,26 @@ impl Expr {
             },
             sqlparser::ast::Expr::AnyOp(expr) => Expr {
                 r#type: type_atoms::any_op(),
-                val: ExprEnum::AnyOp(Box::new(Expr::new(*expr))),
+                value: ExprEnum::AnyOp(Box::new(Expr::new(*expr))),
             },
             sqlparser::ast::Expr::AllOp(expr) => Expr {
                 r#type: type_atoms::all_op(),
-                val: ExprEnum::AllOp(Box::new(Expr::new(*expr))),
+                value: ExprEnum::AllOp(Box::new(Expr::new(*expr))),
             },
             sqlparser::ast::Expr::Nested(expr) => Expr {
                 r#type: type_atoms::nested(),
-                val: ExprEnum::Nested(Box::new(Expr::new(*expr))),
+                value: ExprEnum::Nested(Box::new(Expr::new(*expr))),
             },
             sqlparser::ast::Expr::UnaryOp { op, expr } => Expr {
                 r#type: type_atoms::unary_op(),
-                val: ExprEnum::UnaryOp(UnaryOp {
+                value: ExprEnum::UnaryOp(UnaryOp {
                     op: op.into(),
                     expr: Box::new(Expr::new(*expr)),
                 }),
             },
             sqlparser::ast::Expr::Value(value) => Expr {
                 r#type: type_atoms::value(),
-                val: ExprEnum::Value(value.into()),
+                value: ExprEnum::Value(value.into()),
             },
             sqlparser::ast::Expr::SafeCast { .. }
             | sqlparser::ast::Expr::TryCast { .. }
@@ -837,7 +857,7 @@ impl Expr {
             | sqlparser::ast::Expr::MatchAgainst { .. }
             | sqlparser::ast::Expr::IsNotDistinctFrom(_, _) => Expr {
                 r#type: result_atoms::not_implemented(),
-                val: ExprEnum::NotImplemented(result_atoms::not_implemented()),
+                value: ExprEnum::NotImplemented(result_atoms::not_implemented()),
             },
         }
     }

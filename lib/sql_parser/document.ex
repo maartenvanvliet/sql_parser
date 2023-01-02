@@ -7,9 +7,13 @@ defmodule SqlParser.Query do
 end
 
 defmodule SqlParser.Expr do
-  defstruct [:type, :val]
+  defstruct [:type, :value]
 end
 
+defmodule SqlParser.Number do
+  defstruct [:value, :is_float]
+
+end
 defmodule SqlParser.ExprWithAlias do
   defstruct [:alias, :expr]
 end

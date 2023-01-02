@@ -64,7 +64,7 @@ defmodule SqlParserTest do
                   %SqlParser.OrderByExpr{
                     expr: %Expr{
                       type: :identifier,
-                      val: %Ident{quote_style: nil, value: "f"}
+                      value: %Ident{quote_style: nil, value: "f"}
                     },
                     asc: nil,
                     nulls_first: nil
@@ -115,7 +115,7 @@ defmodule SqlParserTest do
                body: %SqlParser.Select{
                  selection: %Expr{
                    type: :binary_op,
-                   val: %SqlParser.BinaryOp{
+                   value: %SqlParser.BinaryOp{
                      left: _,
                      op: ^name,
                      right: _
@@ -146,10 +146,10 @@ defmodule SqlParserTest do
                            __struct__: SqlParser.JoinConstraint,
                            constraint: %SqlParser.Expr{
                              type: :binary_op,
-                             val: %SqlParser.BinaryOp{
+                             value: %SqlParser.BinaryOp{
                                left: %SqlParser.Expr{
                                  type: :compound_identifier,
-                                 val: [
+                                 value: [
                                    %SqlParser.Ident{quote_style: nil, value: "a"},
                                    %SqlParser.Ident{quote_style: nil, value: "id"}
                                  ]
@@ -157,7 +157,7 @@ defmodule SqlParserTest do
                                op: :eq,
                                right: %SqlParser.Expr{
                                  type: :compound_identifier,
-                                 val: [
+                                 value: [
                                    %SqlParser.Ident{quote_style: nil, value: "b"},
                                    %SqlParser.Ident{quote_style: nil, value: "a_id"}
                                  ]
@@ -184,15 +184,15 @@ defmodule SqlParserTest do
   @exprs %{
     %Expr{
       type: :binary_op,
-      val: %SqlParser.BinaryOp{
-        left: %Expr{type: :identifier, val: %Ident{quote_style: nil, value: "a"}},
+      value: %SqlParser.BinaryOp{
+        left: %Expr{type: :identifier, value: %Ident{quote_style: nil, value: "a"}},
         op: :eq,
-        right: %Expr{type: :value, val: {:number, "1", false}}
+        right: %Expr{type: :value, value: {:number, "1", false}}
       }
-    } => "a = 1",
+    } => "a = 100000000000000000000000100000000000000000000000",
     %Expr{
       type: :is_null,
-      val: %Expr{type: :identifier, val: %Ident{quote_style: nil, value: "c"}}
+      value: %Expr{type: :identifier, value: %Ident{quote_style: nil, value: "c"}}
     } => "c IS NULL"
   }
 
