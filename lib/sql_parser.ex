@@ -29,4 +29,13 @@ defmodule SqlParser do
       {:error, error} -> {:error, error}
     end
   end
+
+  def to_sql(ast, opts \\ []) do
+    dialect = opts[:dialect] || :ansi
+
+    case SqlParser.Parse.to_sql(ast, dialect) do
+      {:ok, sql} -> {:ok, sql}
+      {:error, error} -> {:error, error}
+    end
+  end
 end

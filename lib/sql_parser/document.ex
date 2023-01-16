@@ -11,8 +11,10 @@ defmodule SqlParser.Expr do
 end
 
 defmodule SqlParser.Number do
-  defstruct [:value, :is_float]
-
+  defstruct [:value, :long]
+end
+defmodule SqlParser.Boolean do
+  defstruct [:value]
 end
 defmodule SqlParser.ExprWithAlias do
   defstruct [:alias, :expr]

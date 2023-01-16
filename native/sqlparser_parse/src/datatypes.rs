@@ -1,6 +1,6 @@
 use rustler::types::atom::Atom;
-use rustler::{Encoder, Env, Term};
-use rustler::{NifStruct, NifTaggedEnum, NifUntaggedEnum};
+use rustler::{Decoder, Encoder, Env, Term};
+use rustler::{NifResult, NifStruct, NifTaggedEnum, NifUntaggedEnum};
 // use rustler::{map}
 mod type_atoms {
     rustler::atoms! {
@@ -38,11 +38,12 @@ mod result_atoms {
     }
 }
 #[derive(NifStruct)]
-#[rustler(encode)]
+// #[rustler(encode)]
 #[module = "SqlParser.Document"]
 pub struct Document {
-    statements: Vec<Statement>,
+    pub statements: Vec<Statement>,
 }
+// sqlparser::ast::Query
 impl Document {
     pub fn new(ast: Vec<sqlparser::ast::Statement>) -> Self {
         Self {
@@ -59,29 +60,345 @@ impl Document {
         }
     }
 }
+impl From<Value> for sqlparser::ast::Value {
+    fn from(value: Value) -> Self {
+        // sqlparser::ast::Value {
+        //     value: ident.value,
+        //     quote_style: None,
+        // }
+        //Value::Number(number)
+        match value {
+            Value::Number(number) => sqlparser::ast::Value::Number(number.value, number.long),
+            Value::Boolean(boolean) => sqlparser::ast::Value::Boolean(boolean.value),
+            _ => sqlparser::ast::Value::Number("3".to_string(), false),
+        }
+    }
+}
+impl From<BinaryOperator> for sqlparser::ast::BinaryOperator {
+    fn from(binary_operator: BinaryOperator) -> Self {
+        match binary_operator {
+            BinaryOperator::And => Self::And,
+            BinaryOperator::BitwiseAnd => Self::BitwiseAnd,
+            BinaryOperator::GtEq => Self::GtEq,
+            BinaryOperator::Gt => Self::Gt,
+            BinaryOperator::LtEq => Self::LtEq,
+            BinaryOperator::Lt => Self::Lt,
+            BinaryOperator::Plus => Self::Plus,
+            BinaryOperator::Minus => Self::Minus,
+            BinaryOperator::Multiply => Self::Multiply,
+            BinaryOperator::Divide => Self::Divide,
+            BinaryOperator::Modulo => Self::Modulo,
+            BinaryOperator::StringConcat => Self::StringConcat,
+            BinaryOperator::Eq => Self::Eq,
+            _ => Self::Eq,
+        }
+    }
+}
+impl From<UnaryOperator> for sqlparser::ast::UnaryOperator {
+    fn from(unary_operator: UnaryOperator) -> Self {
+        match unary_operator {
+            UnaryOperator::Plus => Self::Plus,
+            UnaryOperator::Minus => Self::Minus,
+            UnaryOperator::Not => Self::Not,
+            UnaryOperator::PGBitwiseNot => Self::PGBitwiseNot,
+            UnaryOperator::PGSquareRoot => Self::PGSquareRoot,
+            UnaryOperator::PGCubeRoot => Self::PGCubeRoot,
+            UnaryOperator::PGPostfixFactorial => Self::PGPostfixFactorial,
+            UnaryOperator::PGPrefixFactorial => Self::PGPrefixFactorial,
+            UnaryOperator::PGAbs => Self::PGAbs,
+        }
+    }
+}
 
+impl From<Expr> for sqlparser::ast::Expr {
+    fn from(expr: Expr) -> Self {
+        match expr.value {
+            ExprEnum::Identifier(ident) => {
+                sqlparser::ast::Expr::Identifier(sqlparser::ast::Ident {
+                    value: ident.value,
+                    quote_style: None,
+                })
+            }
+            ExprEnum::CompoundIdentifier(idents) => sqlparser::ast::Expr::CompoundIdentifier(
+                idents
+                    .iter()
+                    .map(|i| sqlparser::ast::Ident {
+                        value: i.value.clone(),
+                        quote_style: None,
+                    })
+                    .collect(),
+            ),
+            ExprEnum::Value(value) => {
+                sqlparser::ast::Expr::Value(sqlparser::ast::Value::from(value))
+            }
+            ExprEnum::BinaryOp(op) => sqlparser::ast::Expr::BinaryOp {
+                left: Box::new(sqlparser::ast::Expr::from(*op.left.clone())),
+                op: sqlparser::ast::BinaryOperator::from(op.op),
+                right: Box::new(sqlparser::ast::Expr::from(*op.right.clone())),
+            },
+            ExprEnum::IsFalse(expr) => {
+                sqlparser::ast::Expr::IsFalse(Box::new(sqlparser::ast::Expr::from(*expr.clone())))
+            }
+            ExprEnum::IsNotFalse(expr) => sqlparser::ast::Expr::IsNotFalse(Box::new(
+                sqlparser::ast::Expr::from(*expr.clone()),
+            )),
+            ExprEnum::IsTrue(expr) => {
+                sqlparser::ast::Expr::IsTrue(Box::new(sqlparser::ast::Expr::from(*expr.clone())))
+            }
+            ExprEnum::IsNotTrue(expr) => {
+                sqlparser::ast::Expr::IsNotTrue(Box::new(sqlparser::ast::Expr::from(*expr.clone())))
+            }
+            ExprEnum::IsNull(expr) => {
+                sqlparser::ast::Expr::IsNull(Box::new(sqlparser::ast::Expr::from(*expr.clone())))
+            }
+            ExprEnum::IsNotNull(expr) => {
+                sqlparser::ast::Expr::IsNotNull(Box::new(sqlparser::ast::Expr::from(*expr.clone())))
+            }
+            ExprEnum::IsUnknown(expr) => {
+                sqlparser::ast::Expr::IsUnknown(Box::new(sqlparser::ast::Expr::from(*expr.clone())))
+            }
+            ExprEnum::IsNotUnknown(expr) => sqlparser::ast::Expr::IsNotUnknown(Box::new(
+                sqlparser::ast::Expr::from(*expr.clone()),
+            )),
+            ExprEnum::UnaryOp(op) => sqlparser::ast::Expr::UnaryOp {
+                expr: Box::new(sqlparser::ast::Expr::from(*op.expr.clone())),
+                op: sqlparser::ast::UnaryOperator::from(op.op)
+            },
+            ExprEnum::SimilarTo(..)
+            | ExprEnum::Nested(..)
+            | ExprEnum::NotImplemented(..)
+            | ExprEnum::Between(..)
+            | ExprEnum::Like(..)
+            | ExprEnum::ILike(..)
+            | ExprEnum::InUnnest(..)
+            | ExprEnum::InSubquery(..)
+            | ExprEnum::InList(..)
+            | ExprEnum::AllOp(..)
+            | ExprEnum::AnyOp(..)
+            | ExprEnum::CompositeAccess(..) => sqlparser::ast::Expr::Identifier(sqlparser::ast::Ident {
+                value: "abd".to_string(),
+                quote_style: None,
+            }),
+        }
+    }
+}
+impl From<SelectItem> for sqlparser::ast::SelectItem {
+    fn from(select_item: SelectItem) -> Self {
+        match select_item {
+            SelectItem::UnnamedExpr(expr) => {
+                sqlparser::ast::SelectItem::UnnamedExpr(sqlparser::ast::Expr::from(expr))
+            }
+            SelectItem::Wildcard(_) => {
+                sqlparser::ast::SelectItem::Wildcard(sqlparser::ast::WildcardAdditionalOptions {
+                    opt_exclude: None,
+                    opt_except: None,
+                    opt_rename: None,
+                })
+            }
+            _ => sqlparser::ast::SelectItem::UnnamedExpr(sqlparser::ast::Expr::Identifier(
+                sqlparser::ast::Ident {
+                    value: "abd".to_string(),
+                    quote_style: None,
+                },
+            )),
+        }
+    }
+}
+impl From<Ident> for sqlparser::ast::Ident {
+    fn from(ident: Ident) -> Self {
+        sqlparser::ast::Ident {
+            value: ident.value,
+            quote_style: None,
+        }
+    }
+}
+impl From<ObjectName> for sqlparser::ast::ObjectName {
+    fn from(object_name: ObjectName) -> Self {
+        sqlparser::ast::ObjectName(
+            object_name
+                .names
+                .iter()
+                .map(|l| sqlparser::ast::Ident::from(l.clone()))
+                .collect(),
+        )
+    }
+}
+impl From<TableFactor> for sqlparser::ast::TableFactor {
+    fn from(select_item: TableFactor) -> Self {
+        let name = sqlparser::ast::ObjectName([].to_vec());
+        match select_item {
+            TableFactor::Table(table) => sqlparser::ast::TableFactor::Table {
+                name: sqlparser::ast::ObjectName::from(table.name),
+                alias: None,
+                args: None,
+                with_hints: [].to_vec(),
+            },
+            _ => sqlparser::ast::TableFactor::Table {
+                name: name,
+                alias: None,
+                args: None,
+                with_hints: [].to_vec(),
+            },
+        }
+    }
+}
+impl From<JoinOperator> for sqlparser::ast::JoinOperator {
+    fn from(join_operator: JoinOperator) -> Self {
+        match join_operator {
+            _ => sqlparser::ast::JoinOperator::CrossJoin
+        }
+    }
+}
+impl From<Join> for sqlparser::ast::Join {
+    fn from(join: Join) -> Self {
+        sqlparser::ast::Join {
+            relation: sqlparser::ast::TableFactor::from(join.relation),
+            join_operator: sqlparser::ast::JoinOperator::from(join.join_operator),
+        }
+    }
+}
+impl From<TableWithJoins> for sqlparser::ast::TableWithJoins {
+    fn from(table_with_joins: TableWithJoins) -> Self {
+        sqlparser::ast::TableWithJoins {
+            relation: sqlparser::ast::TableFactor::from(table_with_joins.relation),
+            joins: table_with_joins.joins.iter().map(|j| sqlparser::ast::Join::from(j.clone())).collect(),
+        }
+    }
+}
+impl From<OrderByExpr> for sqlparser::ast::OrderByExpr {
+    fn from(order_by_expr: OrderByExpr) -> Self {
+        sqlparser::ast::OrderByExpr {
+            expr: sqlparser::ast::Expr::from(order_by_expr.expr),
+            asc: order_by_expr.asc,
+            nulls_first: order_by_expr.nulls_first,
+        }
+    }
+}
+impl From<SetExpr> for sqlparser::ast::SetExpr {
+    fn from(setexpr: SetExpr) -> Self {
+        match setexpr {
+            SetExpr::Select(select) => {
+                sqlparser::ast::SetExpr::Select(Box::new(sqlparser::ast::Select {
+                    distinct: select.distinct,
+                    top: None,
+                    projection: select
+                        .projection
+                        .iter()
+                        .map(|l| sqlparser::ast::SelectItem::from(l.clone()))
+                        .collect(),
+                    into: None,
+                    from: select
+                        .from
+                        .iter()
+                        .map(|l| sqlparser::ast::TableWithJoins::from(l.clone()))
+                        .collect(),
+                    lateral_views: [].to_vec(),
+                    selection: select.selection.map(|l| sqlparser::ast::Expr::from(l)),
+                    group_by: select
+                        .group_by
+                        .iter()
+                        .map(|l| sqlparser::ast::Expr::from(l.clone()))
+                        .collect(),
+                    cluster_by: [].to_vec(),
+                    distribute_by: [].to_vec(),
+                    sort_by: select
+                        .sort_by
+                        .iter()
+                        .map(|l| sqlparser::ast::Expr::from(l.clone()))
+                        .collect(),
+                    having: select.having.map(|l| sqlparser::ast::Expr::from(l)),
+                    qualify: None,
+                }))
+            }
+            _ => sqlparser::ast::SetExpr::Select(Box::new(sqlparser::ast::Select {
+                distinct: false,
+                top: None,
+                projection: [].to_vec(),
+                into: None,
+                from: [].to_vec(),
+                lateral_views: [].to_vec(),
+                selection: None,
+                group_by: [].to_vec(),
+                cluster_by: [].to_vec(),
+                distribute_by: [].to_vec(),
+                sort_by: [].to_vec(),
+                having: None,
+                qualify: None,
+            })),
+        }
+    }
+}
+impl From<Statement> for sqlparser::ast::Statement {
+    fn from(value: Statement) -> Self {
+        match value {
+            Statement::Query(query) => {
+                sqlparser::ast::Statement::Query(Box::new(sqlparser::ast::Query {
+                    body: Box::new(sqlparser::ast::SetExpr::from(query.body)),
+                    limit: query.limit.map(|l| sqlparser::ast::Expr::from(l)),
+                    with: None,
+                    order_by: query
+                        .order_by
+                        .iter()
+                        .map(|l| sqlparser::ast::OrderByExpr::from(l.clone()))
+                        .collect(),
+                    locks: [].to_vec(),
+                    fetch: None,
+                    offset: None,
+                }))
+            }
+            _ => sqlparser::ast::Statement::Query(Box::new(sqlparser::ast::Query {
+                body: Box::new(sqlparser::ast::SetExpr::Select(Box::new(
+                    sqlparser::ast::Select {
+                        distinct: false,
+                        top: None,
+                        projection: [].to_vec(),
+                        into: None,
+                        from: [].to_vec(),
+                        lateral_views: [].to_vec(),
+                        selection: None,
+                        group_by: [].to_vec(),
+                        cluster_by: [].to_vec(),
+                        distribute_by: [].to_vec(),
+                        sort_by: [].to_vec(),
+                        having: None,
+                        qualify: None,
+                    },
+                ))),
+
+                limit: None,
+                with: None,
+                order_by: [].to_vec(),
+                locks: [].to_vec(),
+                fetch: None,
+                offset: None,
+            })),
+        }
+    }
+}
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
 #[module = "SqlParser.Values"]
+#[derive(Clone)]
 pub struct Values {
     explicit_row: bool,
     rows: Vec<Vec<Expr>>,
 }
-#[derive(NifTaggedEnum)]
+#[derive(NifTaggedEnum, Clone)]
 pub enum SetOperator {
     Union,
     Except,
     Intersect,
 }
-#[derive(NifTaggedEnum)]
+#[derive(NifTaggedEnum, Clone)]
 pub enum SetQuantifier {
     All,
     Distinct,
     None,
 }
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
 #[module = "SqlParser.SetOperation"]
+#[derive(Clone)]
 pub struct SetOperation {
     op: SetOperator,
     set_quantifier: SetQuantifier,
@@ -89,8 +406,8 @@ pub struct SetOperation {
     right: Box<SetExpr>,
 }
 
-#[derive(NifUntaggedEnum)]
-#[rustler(encode)]
+#[derive(Clone, NifUntaggedEnum)]
+// #[rustler(encode)]
 pub enum SetExpr {
     Select(Select),
     Query(Box<Query>),
@@ -105,9 +422,15 @@ impl Encoder for Box<SetExpr> {
         data.encode(env)
     }
 }
+impl Decoder<'_> for Box<SetExpr> {
+    fn decode<'a>(_term: Term<'a>) -> NifResult<Self> {
+        Err(rustler::error::Error::BadArg)
+    }
+}
 
 #[derive(NifStruct)]
 #[module = "SqlParser.Wildcard"]
+#[derive(Clone)]
 pub struct Wildcard {}
 impl Wildcard {
     pub fn new() -> Self {
@@ -116,15 +439,17 @@ impl Wildcard {
 }
 
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
 #[module = "SqlParser.ExprWithAlias"]
+#[derive(Clone)]
 pub struct ExprWithAlias {
     expr: Expr,
     alias: Ident,
 }
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
 #[module = "SqlParser.JoinConstraint"]
+#[derive(Clone)]
 pub struct JoinConstraint {
     constraint: JoinConstraintEnum,
     kind: Atom,
@@ -139,8 +464,8 @@ mod join_constraints_atoms {
     }
 }
 
-#[derive(NifUntaggedEnum)]
-#[rustler(encode)]
+#[derive(NifUntaggedEnum, Clone)]
+//#[rustler(encode)]
 pub enum JoinConstraintEnum {
     On(Expr),
     Using(Vec<Ident>),
@@ -172,8 +497,8 @@ impl From<sqlparser::ast::JoinConstraint> for JoinConstraint {
     }
 }
 
-#[derive(NifStruct)]
-#[rustler(encode)]
+#[derive(NifStruct, Clone)]
+//#[rustler(encode)]
 #[module = "SqlParser.JoinOperator"]
 pub struct JoinOperator {
     operator: JoinOperatorEnum,
@@ -195,8 +520,8 @@ mod join_operator_atoms {
         outer_apply
     }
 }
-#[derive(NifUntaggedEnum)]
-#[rustler(encode)]
+#[derive(NifUntaggedEnum, Clone)]
+//#[rustler(encode)]
 pub enum JoinOperatorEnum {
     Inner(JoinConstraint),
     LeftOuter(JoinConstraint),
@@ -254,8 +579,8 @@ impl From<sqlparser::ast::JoinOperator> for JoinOperator {
     }
 }
 
-#[derive(NifUntaggedEnum)]
-#[rustler(encode)]
+#[derive(NifUntaggedEnum, Clone)]
+//#[rustler(encode)]
 pub enum SelectItem {
     Wildcard(Wildcard),
     UnnamedExpr(Expr),
@@ -263,16 +588,18 @@ pub enum SelectItem {
     ExprWithAlias(ExprWithAlias), // QualifiedWildcard(ObjectName, WildcardAdditionalOptions),
 }
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
 #[module = "SqlParser.Join"]
+#[derive(Clone)]
 pub struct Join {
     pub relation: TableFactor,
     pub join_operator: JoinOperator,
 }
 
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
 #[module = "SqlParser.TableWithJoins"]
+#[derive(Clone)]
 pub struct TableWithJoins {
     pub relation: TableFactor,
     pub joins: Vec<Join>,
@@ -295,6 +622,7 @@ impl TableWithJoins {
 }
 #[derive(NifStruct)]
 #[module = "SqlParser.Ident"]
+#[derive(Clone)]
 pub struct Ident {
     pub value: String,
     pub quote_style: Option<String>,
@@ -314,11 +642,12 @@ impl From<sqlparser::ast::Ident> for Ident {
 
 #[derive(NifStruct)]
 #[module = "SqlParser.ObjectName"]
+#[derive(Clone)]
 pub struct ObjectName {
     names: Vec<Ident>,
 }
 
-#[derive(NifUntaggedEnum)]
+#[derive(NifUntaggedEnum, Clone)]
 pub enum TableFactor {
     Table(Table),
     NotImplemented(Atom),
@@ -350,11 +679,12 @@ impl From<sqlparser::ast::TableFactor> for TableFactor {
 
 #[derive(NifStruct)]
 #[module = "SqlParser.Table"]
+#[derive(Clone)]
 pub struct Table {
     name: ObjectName,
 }
 
-#[derive(NifTaggedEnum)]
+#[derive(NifTaggedEnum, Clone)]
 pub enum BinaryOperator {
     Plus,
     Minus,
@@ -419,7 +749,7 @@ impl From<sqlparser::ast::BinaryOperator> for BinaryOperator {
     }
 }
 
-#[derive(NifTaggedEnum)]
+#[derive(NifTaggedEnum, Clone)]
 pub enum UnaryOperator {
     Plus,
     Minus,
@@ -448,22 +778,25 @@ impl From<sqlparser::ast::UnaryOperator> for UnaryOperator {
 }
 
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
 #[module = "SqlParser.UnaryOp"]
+#[derive(Clone)]
 pub struct UnaryOp {
     op: UnaryOperator,
     expr: Box<Expr>,
 }
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
 #[module = "SqlParser.CompositeAccess"]
+#[derive(Clone)]
 pub struct CompositeAccess {
     expr: Box<Expr>,
     key: Ident,
 }
 
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
+#[derive(Clone)]
 #[module = "SqlParser.BinaryOp"]
 pub struct BinaryOp {
     left: Box<Expr>,
@@ -471,27 +804,30 @@ pub struct BinaryOp {
     right: Box<Expr>,
 }
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
 #[module = "SqlParser.Number"]
+#[derive(Clone)]
 pub struct Number {
     value: String,
-    is_float: bool
+    long: bool,
 }
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
 #[module = "SqlParser.Boolean"]
+#[derive(Clone)]
 pub struct Boolean {
     value: bool,
 }
 
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
 #[module = "SqlParser.Null"]
-pub struct Null {
-}
+#[derive(Clone)]
+pub struct Null {}
 
 #[derive(NifUntaggedEnum)]
-#[rustler(encode)]
+//#[rustler(encode)]
+#[derive(Clone)]
 pub enum Value {
     Number(Number),
     SingleQuotedString(String),
@@ -509,7 +845,10 @@ pub enum Value {
 impl From<sqlparser::ast::Value> for Value {
     fn from(value: sqlparser::ast::Value) -> Self {
         match value {
-            sqlparser::ast::Value::Number(num, is_float) => Self::Number(Number{ value: num, is_float: is_float}),
+            sqlparser::ast::Value::Number(num, long) => Self::Number(Number {
+                value: num,
+                long: long,
+            }),
             sqlparser::ast::Value::SingleQuotedString(string) => Self::SingleQuotedString(string),
             sqlparser::ast::Value::DollarQuotedString(_dollar_quoted_string) => {
                 Self::NotImplemented(result_atoms::not_implemented())
@@ -522,8 +861,8 @@ impl From<sqlparser::ast::Value> for Value {
             }
             sqlparser::ast::Value::HexStringLiteral(string) => Self::HexStringLiteral(string),
             sqlparser::ast::Value::DoubleQuotedString(string) => Self::DoubleQuotedString(string),
-            sqlparser::ast::Value::Boolean(boolean) => Self::Boolean(Boolean{value: boolean}),
-            sqlparser::ast::Value::Null => Self::Null(Null{}),
+            sqlparser::ast::Value::Boolean(boolean) => Self::Boolean(Boolean { value: boolean }),
+            sqlparser::ast::Value::Null => Self::Null(Null {}),
             sqlparser::ast::Value::Placeholder(placeholder) => Self::Placeholder(placeholder),
             sqlparser::ast::Value::UnQuotedString(string) => Self::UnQuotedString(string),
         }
@@ -531,7 +870,8 @@ impl From<sqlparser::ast::Value> for Value {
 }
 
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
+#[derive(Clone)]
 #[module = "SqlParser.InList"]
 pub struct InList {
     expr: Box<Expr>,
@@ -539,16 +879,18 @@ pub struct InList {
     negated: bool,
 }
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
 #[module = "SqlParser.InSubquery"]
+#[derive(Clone)]
 pub struct InSubquery {
     expr: Box<Expr>,
     subquery: Box<Query>,
     negated: bool,
 }
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
 #[module = "SqlParser.InUnnest"]
+#[derive(Clone)]
 pub struct InUnnest {
     expr: Box<Expr>,
     array_expr: Box<Expr>,
@@ -556,8 +898,9 @@ pub struct InUnnest {
 }
 
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
 #[module = "SqlParser.Between"]
+#[derive(Clone)]
 pub struct Between {
     expr: Box<Expr>,
     negated: bool,
@@ -565,8 +908,9 @@ pub struct Between {
     high: Box<Expr>,
 }
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
 #[module = "SqlParser.SimilarTo"]
+#[derive(Clone)]
 pub struct SimilarTo {
     negated: bool,
     expr: Box<Expr>,
@@ -574,8 +918,9 @@ pub struct SimilarTo {
     escape_char: Option<String>,
 }
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
 #[module = "SqlParser.Like"]
+#[derive(Clone)]
 pub struct Like {
     negated: bool,
     expr: Box<Expr>,
@@ -583,8 +928,9 @@ pub struct Like {
     escape_char: Option<String>,
 }
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
 #[module = "SqlParser.ILike"]
+#[derive(Clone)]
 pub struct ILike {
     negated: bool,
     expr: Box<Expr>,
@@ -592,7 +938,8 @@ pub struct ILike {
     escape_char: Option<String>,
 }
 #[derive(NifUntaggedEnum)]
-#[rustler(encode)]
+//#[rustler(encode)]
+#[derive(Clone)]
 pub enum ExprEnum {
     Identifier(Ident),
     CompoundIdentifier(Vec<Ident>),
@@ -624,8 +971,8 @@ pub enum ExprEnum {
     Value(Value),
     NotImplemented(Atom),
 }
-#[derive(NifStruct)]
-#[rustler(encode)]
+#[derive(NifStruct, Clone)]
+//#[rustler(encode)]
 #[module = "SqlParser.Expr"]
 pub struct Expr {
     r#type: Atom,
@@ -638,7 +985,15 @@ impl Encoder for Box<Expr> {
         data.encode(env)
     }
 }
-
+impl Decoder<'_> for Box<Expr> {
+    fn decode<'a>(term: Term<'a>) -> NifResult<Self> {
+        let expr: Expr = term.decode()?;
+        println!("{:#?}", term);
+        // println!("{:#?}", expr);
+        // Err(rustler::error::Error::BadArg)
+        Ok(Box::new(expr))
+    }
+}
 impl Expr {
     pub fn new(ast: sqlparser::ast::Expr) -> Self {
         match ast {
@@ -863,8 +1218,9 @@ impl Expr {
     }
 }
 #[derive(NifStruct)]
-#[rustler(encode)]
+// #[rustler(encode)]
 #[module = "SqlParser.Select"]
+#[derive(Clone)]
 pub struct Select {
     pub distinct: bool,
     // pub top: Option<Top>,
@@ -928,8 +1284,8 @@ impl Select {
     }
 }
 
-#[derive(NifStruct)]
-#[rustler(encode)]
+#[derive(Clone, NifStruct)]
+//#[rustler(encode)]
 #[module = "SqlParser.Offset"]
 pub struct Offset {
     pub value: Expr,
@@ -937,7 +1293,8 @@ pub struct Offset {
 }
 
 #[derive(NifStruct)]
-#[rustler(encode)]
+//#[rustler(encode)]
+#[derive(Clone)]
 #[module = "SqlParser.OrderByExpr"]
 pub struct OrderByExpr {
     pub expr: Expr,
@@ -945,8 +1302,8 @@ pub struct OrderByExpr {
     pub nulls_first: Option<bool>,
 }
 
-#[derive(NifStruct)]
-#[rustler(encode)]
+#[derive(Clone, NifStruct)]
+// #[rustler(encode)]
 #[module = "SqlParser.Query"]
 pub struct Query {
     // pub with: Option<With>,
@@ -957,7 +1314,7 @@ pub struct Query {
     // pub fetch: Option<Fetch>,
     // pub lock: Option<LockType>,
 }
-#[derive(NifTaggedEnum)]
+#[derive(NifTaggedEnum, Clone)]
 pub enum OffsetRows {
     None,
     Row,
@@ -968,6 +1325,11 @@ impl Encoder for Box<Query> {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
         let data = &**self;
         data.encode(env)
+    }
+}
+impl Decoder<'_> for Box<Query> {
+    fn decode<'a>(_term: Term<'a>) -> NifResult<Self> {
+        Err(rustler::error::Error::BadArg)
     }
 }
 impl From<sqlparser::ast::SetExpr> for SetExpr {
@@ -1041,8 +1403,8 @@ impl Query {
     }
 }
 
-#[derive(NifUntaggedEnum)]
-#[rustler(encode)]
+#[derive(Clone, NifUntaggedEnum)]
+// #[rustler(encode)]
 pub enum Statement {
     Query(Query),
     NotImplemented(Atom),

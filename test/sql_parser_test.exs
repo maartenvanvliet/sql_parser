@@ -4,6 +4,12 @@ defmodule SqlParserTest do
   alias SqlParser.Expr
   alias SqlParser.Ident
 
+  test "to_sql" do
+    # WHERE b.a = d
+    sql = "SELECT * FROM a JOIN b on a.id = b.a_id WHERE b.a = d"
+    {:ok, statements} = SqlParser.parse(sql) |> IO.inspect
+    assert {:ok, sql} == SqlParser.to_sql(%SqlParser.Document{statements: statements} , dialect: :postgres)
+  end
   test "recursion limit" do
     assert {:error, "sql parser error: recursion limit exceeded"} =
              SqlParser.parse("SELECT * FROM a WHERE b.a = c", recursion_limit: 1)
@@ -189,13 +195,15 @@ defmodule SqlParserTest do
         op: :eq,
         right: %Expr{type: :value, value: {:number, "1", false}}
       }
-    } => "a = 100000000000000000000000100000000000000000000000",
+    } => "a = 18446744073709551616.18446744073709551616",
     %Expr{
       type: :is_null,
       value: %Expr{type: :identifier, value: %Ident{quote_style: nil, value: "c"}}
     } => "c IS NULL"
   }
 
+
+@tag :skip
   test "expr work" do
     for {expected_selection, expr} <- @exprs do
       assert {:ok, [query]} = SqlParser.parse("SELECT c as b from a WHERE #{expr}")

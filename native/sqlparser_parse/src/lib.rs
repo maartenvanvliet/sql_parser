@@ -66,4 +66,10 @@ fn parse_statements(
     return ast;
 }
 
-rustler::init!("Elixir.SqlParser.Parse", [parse_statements]);
+#[rustler::nif]
+fn to_sql(ast: Document, _dialect: Dialect) -> Result<(Atom, String), Error> {
+    let statement = sqlparser::ast::Statement::from(ast.statements[0].clone());
+    return Ok((atom::ok(), statement.to_string()));
+}
+
+rustler::init!("Elixir.SqlParser.Parse", [parse_statements, to_sql]);
