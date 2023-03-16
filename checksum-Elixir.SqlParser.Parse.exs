@@ -1,2 +1,18 @@
 %{
+  "libsqlparser_parse-v0.2.4-nif-2.15-aarch64-apple-darwin.so.tar.gz" => "sha256:7a5f1cd74c7a25413ed49e93abd9c817f02de0689490f346935674d58480881a",
+  "libsqlparser_parse-v0.2.4-nif-2.15-aarch64-unknown-linux-gnu.so.tar.gz" => "sha256:7d6b3576afcc244660bbeeecbf7de246ef6cc05ce6862c85d7ab093636e621cd",
+  "libsqlparser_parse-v0.2.4-nif-2.15-arm-unknown-linux-gnueabihf.so.tar.gz" => "sha256:29c2fdd7eadc48b0ba11578d1639f1e928ba345621237972046047dafc0ae0bd",
+  "libsqlparser_parse-v0.2.4-nif-2.15-riscv64gc-unknown-linux-gnu.so.tar.gz" => "sha256:2e74f2c3230a887c1e60ce3d9897bead3fb78ffd37fc6bea72a60e51530cec1f",
+  "libsqlparser_parse-v0.2.4-nif-2.15-x86_64-apple-darwin.so.tar.gz" => "sha256:8e3d30283483c27f7f33ae555e2503cb0280a2c36f14d036b9d6568117cd1d7d",
+  "libsqlparser_parse-v0.2.4-nif-2.15-x86_64-unknown-linux-gnu.so.tar.gz" => "sha256:ef297ba45b7ea3c676b7f9aea5f009a2b6668a0dd1fe577d0389e94813c6cde6",
+  "libsqlparser_parse-v0.2.4-nif-2.16-aarch64-apple-darwin.so.tar.gz" => "sha256:2ade802b2eae21fbb54870b5094858a436c618d22de9517c098e359b741e3576",
+  "libsqlparser_parse-v0.2.4-nif-2.16-aarch64-unknown-linux-gnu.so.tar.gz" => "sha256:9c3acded82ecd6bb11f3c8b74becd66d17570b6b246ebf4c70e914289c30843a",
+  "libsqlparser_parse-v0.2.4-nif-2.16-arm-unknown-linux-gnueabihf.so.tar.gz" => "sha256:04ba4dfd000e6d506e34c89439513394fc81bf7d91a9e22cc33d72be73dfede1",
+  "libsqlparser_parse-v0.2.4-nif-2.16-riscv64gc-unknown-linux-gnu.so.tar.gz" => "sha256:fb65a51c50879821fc5a0c0fa06fea96291438cc2be313130b52102394ff5d78",
+  "libsqlparser_parse-v0.2.4-nif-2.16-x86_64-apple-darwin.so.tar.gz" => "sha256:28557e3462e032675aebab9209618b332c0da3ae265fae8bd9b6c81e05b5da2c",
+  "libsqlparser_parse-v0.2.4-nif-2.16-x86_64-unknown-linux-gnu.so.tar.gz" => "sha256:09aa7ae6cda83fed6cea65af611e034c7b05a674e5681c1adca189f134b43f2a",
+  "sqlparser_parse-v0.2.4-nif-2.15-x86_64-pc-windows-gnu.dll.tar.gz" => "sha256:5138c7655e8f7528e2f17e3d10ef81fc53db7308172960d5f6c2f74fde021b9f",
+  "sqlparser_parse-v0.2.4-nif-2.15-x86_64-pc-windows-msvc.dll.tar.gz" => "sha256:09555240f37949387fac1a6ed3cc211bbb47eb7473534fb18918fc10a822e44a",
+  "sqlparser_parse-v0.2.4-nif-2.16-x86_64-pc-windows-gnu.dll.tar.gz" => "sha256:d506b911b2471c76638a6e4e6bf9deb9186b4ab0a0a567d0510c3813ba6d663d",
+  "sqlparser_parse-v0.2.4-nif-2.16-x86_64-pc-windows-msvc.dll.tar.gz" => "sha256:bf3ee68e97ce652179d4d3422c4c75bf44fbbdf514a0a4266a7f84423441aa5c",
 }
