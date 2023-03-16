@@ -1,8 +1,12 @@
 defmodule SqlParser.Parse do
+  version = Mix.Project.config()[:version]
+
   @moduledoc false
-  use Rustler,
+  use RustlerPrecompiled,
     otp_app: :sql_parser,
-    crate: :sqlparser_parse
+    crate: :sqlparser_parse,
+    base_url: "https://github.com/maartenvanvliet/sql_parser/releases/download/v#{version}",
+    version: version
 
   # When loading a NIF module, dummy clauses for all NIF function are required.
   # NIF dummies usually just error out when called when the NIF is not loaded, as that should never normally happen.

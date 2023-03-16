@@ -3,10 +3,11 @@ defmodule SqlParser.MixProject do
 
   @url "https://github.com/maartenvanvliet/sql_parser"
 
+  @version "0.2.2"
   def project do
     [
       app: :sql_parser,
-      version: "0.2.1",
+      version: @version,
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -37,7 +38,7 @@ defmodule SqlParser.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:rustler, "~> 0.25"},
+      {:rustler_precompiled, "~> 0.6.1"},
       {:ex_doc, "~> 0.29", only: [:dev, :test]}
     ]
   end
