@@ -29,7 +29,7 @@ jobs:
       - name: Install Dependencies
         run: mix deps.get && mix deps.unlock --check-unused
       - name: Compile project
-        run: mix compile --warnings-as-errors
+        run: RUSTLER_PRECOMPILATION_SQL_PARSER_BUILD=1 mix compile --warnings-as-errors
       - name: Check formatting
         if: matrix.check_formatted
         run: mix format --check-formatted
