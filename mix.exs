@@ -38,6 +38,7 @@ defmodule SqlParser.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:rustler, ">= 0.0.0", optional: true},
       {:rustler_precompiled, "~> 0.6.1"},
       {:ex_doc, "~> 0.29", only: [:dev, :test]}
     ]

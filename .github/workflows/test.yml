@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - 'main'
+      - "main"
 
 jobs:
   test:
@@ -19,19 +19,19 @@ jobs:
             otp: 25.x
             check_formatted: true
     steps:
-    - name: Clone code
-      uses: actions/checkout@v2
-    - name: Setup Elixir and Erlang
-      uses: erlef/setup-beam@v1
-      with:
+      - name: Clone code
+        uses: actions/checkout@v2
+      - name: Setup Elixir and Erlang
+        uses: erlef/setup-beam@v1
+        with:
           otp-version: ${{ matrix.otp }}
           elixir-version: ${{ matrix.elixir }}
-    - name: Install Dependencies
-      run: mix deps.get && mix deps.unlock --check-unused
-    - name: Compile project
-      run: mix compile --warnings-as-errors
-    - name: Check formatting
-      if: matrix.check_formatted
-      run: mix format --check-formatted
-    - name: Run tests
-      run: mix test
+      - name: Install Dependencies
+        run: mix deps.get && mix deps.unlock --check-unused
+      - name: Compile project
+        run: mix compile --warnings-as-errors
+      - name: Check formatting
+        if: matrix.check_formatted
+        run: mix format --check-formatted
+      - name: Run tests
+        run: RUSTLER_PRECOMPILATION_SQL_PARSER_BUILD=1 mix test

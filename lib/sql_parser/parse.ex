@@ -6,6 +6,7 @@ defmodule SqlParser.Parse do
     otp_app: :sql_parser,
     crate: :sqlparser_parse,
     base_url: "https://github.com/maartenvanvliet/sql_parser/releases/download/v#{version}",
+    force_build: System.get_env("RUSTLER_PRECOMPILATION_SQL_PARSER_BUILD") in ["1", "true"],
     version: version
 
   # When loading a NIF module, dummy clauses for all NIF function are required.
