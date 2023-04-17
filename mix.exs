@@ -3,7 +3,7 @@ defmodule SqlParser.MixProject do
 
   @url "https://github.com/maartenvanvliet/sql_parser"
 
-  @version "0.2.4"
+  @version "0.2.5"
   def project do
     [
       app: :sql_parser,
