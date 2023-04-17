@@ -2,6 +2,14 @@ defmodule SqlParser.Document do
   defstruct [:statements]
 end
 
+defmodule SqlParser.Values do
+  defstruct [:explicit_row, :rows]
+end
+
+defmodule SqlParser.SetOperation do
+  defstruct [:op, :set_quantifier, :left, :right]
+end
+
 defmodule SqlParser.Query do
   defstruct [:body, :order_by, :limit, :offset]
 end
@@ -16,6 +24,10 @@ end
 
 defmodule SqlParser.Boolean do
   defstruct [:value]
+end
+
+defmodule SqlParser.Null do
+  defstruct []
 end
 
 defmodule SqlParser.ExprWithAlias do
@@ -40,6 +52,14 @@ end
 
 defmodule SqlParser.JoinOperator do
   defstruct [:operator, :kind]
+end
+
+defmodule SqlParser.JoinConstraint do
+  defstruct [:constraint, :kind]
+end
+
+defmodule SqlParser.UnaryOp do
+  defstruct [:op, :expr]
 end
 
 defmodule SqlParser.BinaryOp do
@@ -68,4 +88,40 @@ end
 
 defmodule SqlParser.ObjectName do
   defstruct [:names]
+end
+
+defmodule SqlParser.CompositeAccess do
+  defstruct [:expr, :key]
+end
+
+defmodule SqlParser.InList do
+  defstruct [:expr, :list, :negated]
+end
+
+defmodule SqlParser.InSubquery do
+  defstruct [:expr, :subquery, :negated]
+end
+
+defmodule SqlParser.InUnnest do
+  defstruct [:expr, :array_expr, :negated]
+end
+
+defmodule SqlParser.Between do
+  defstruct [:expr, :negated, :low, :high]
+end
+
+defmodule SqlParser.SimilarTo do
+  defstruct [:expr, :negated, :pattern, :escape_char]
+end
+
+defmodule SqlParser.Like do
+  defstruct [:expr, :negated, :pattern, :escape_char]
+end
+
+defmodule SqlParser.ILike do
+  defstruct [:expr, :negated, :pattern, :escape_char]
+end
+
+defmodule SqlParser.Offset do
+  defstruct [:value, :rows]
 end
