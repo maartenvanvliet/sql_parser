@@ -72,4 +72,4 @@ fn to_sql(ast: Document, _dialect: Dialect) -> Result<(Atom, String), Error> {
     return Ok((atom::ok(), statement.to_string()));
 }
 
-rustler::init!("Elixir.SqlParser.Parse", [parse_statements, to_sql]);
+rustler::init!("Elixir.SqlParser.Parse");

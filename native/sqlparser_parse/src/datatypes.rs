@@ -1,6 +1,5 @@
 use rustler::types::atom::Atom;
-use rustler::{Decoder, Encoder, Env, Term};
-use rustler::{NifResult, NifStruct, NifTaggedEnum, NifUntaggedEnum};
+use rustler::{NifStruct, NifTaggedEnum, NifUntaggedEnum};
 // use rustler::{map}
 mod type_atoms {
     rustler::atoms! {
@@ -162,7 +161,7 @@ impl From<Expr> for sqlparser::ast::Expr {
             )),
             ExprEnum::UnaryOp(op) => sqlparser::ast::Expr::UnaryOp {
                 expr: Box::new(sqlparser::ast::Expr::from(*op.expr.clone())),
-                op: sqlparser::ast::UnaryOperator::from(op.op)
+                op: sqlparser::ast::UnaryOperator::from(op.op),
             },
             ExprEnum::SimilarTo(..)
             | ExprEnum::Nested(..)
@@ -175,10 +174,12 @@ impl From<Expr> for sqlparser::ast::Expr {
             | ExprEnum::InList(..)
             | ExprEnum::AllOp(..)
             | ExprEnum::AnyOp(..)
-            | ExprEnum::CompositeAccess(..) => sqlparser::ast::Expr::Identifier(sqlparser::ast::Ident {
-                value: "abd".to_string(),
-                quote_style: None,
-            }),
+            | ExprEnum::CompositeAccess(..) => {
+                sqlparser::ast::Expr::Identifier(sqlparser::ast::Ident {
+                    value: "abd".to_string(),
+                    quote_style: None,
+                })
+            }
         }
     }
 }
@@ -245,7 +246,7 @@ impl From<TableFactor> for sqlparser::ast::TableFactor {
 impl From<JoinOperator> for sqlparser::ast::JoinOperator {
     fn from(join_operator: JoinOperator) -> Self {
         match join_operator {
-            _ => sqlparser::ast::JoinOperator::CrossJoin
+            _ => sqlparser::ast::JoinOperator::CrossJoin,
         }
     }
 }
@@ -261,7 +262,11 @@ impl From<TableWithJoins> for sqlparser::ast::TableWithJoins {
     fn from(table_with_joins: TableWithJoins) -> Self {
         sqlparser::ast::TableWithJoins {
             relation: sqlparser::ast::TableFactor::from(table_with_joins.relation),
-            joins: table_with_joins.joins.iter().map(|j| sqlparser::ast::Join::from(j.clone())).collect(),
+            joins: table_with_joins
+                .joins
+                .iter()
+                .map(|j| sqlparser::ast::Join::from(j.clone()))
+                .collect(),
         }
     }
 }
@@ -415,17 +420,6 @@ pub enum SetExpr {
     SetOperation(SetOperation),
     // Insert(Statement),
     NotImplemented(Atom),
-}
-impl Encoder for Box<SetExpr> {
-    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let data = &**self;
-        data.encode(env)
-    }
-}
-impl Decoder<'_> for Box<SetExpr> {
-    fn decode<'a>(_term: Term<'a>) -> NifResult<Self> {
-        Err(rustler::error::Error::BadArg)
-    }
 }
 
 #[derive(NifStruct)]
@@ -979,21 +973,6 @@ pub struct Expr {
     value: ExprEnum,
 }
 
-impl Encoder for Box<Expr> {
-    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let data = &**self;
-        data.encode(env)
-    }
-}
-impl Decoder<'_> for Box<Expr> {
-    fn decode<'a>(term: Term<'a>) -> NifResult<Self> {
-        let expr: Expr = term.decode()?;
-        println!("{:#?}", term);
-        // println!("{:#?}", expr);
-        // Err(rustler::error::Error::BadArg)
-        Ok(Box::new(expr))
-    }
-}
 impl Expr {
     pub fn new(ast: sqlparser::ast::Expr) -> Self {
         match ast {
@@ -1321,17 +1300,6 @@ pub enum OffsetRows {
     Rows,
 }
 
-impl Encoder for Box<Query> {
-    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let data = &**self;
-        data.encode(env)
-    }
-}
-impl Decoder<'_> for Box<Query> {
-    fn decode<'a>(_term: Term<'a>) -> NifResult<Self> {
-        Err(rustler::error::Error::BadArg)
-    }
-}
 impl From<sqlparser::ast::SetExpr> for SetExpr {
     fn from(set_expr: sqlparser::ast::SetExpr) -> Self {
         match set_expr {
