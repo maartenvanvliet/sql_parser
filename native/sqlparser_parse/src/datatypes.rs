@@ -235,7 +235,7 @@ impl From<TableFactor> for sqlparser::ast::TableFactor {
                 with_hints: [].to_vec(),
             },
             _ => sqlparser::ast::TableFactor::Table {
-                name: name,
+                name,
                 alias: None,
                 args: None,
                 with_hints: [].to_vec(),
@@ -244,10 +244,8 @@ impl From<TableFactor> for sqlparser::ast::TableFactor {
     }
 }
 impl From<JoinOperator> for sqlparser::ast::JoinOperator {
-    fn from(join_operator: JoinOperator) -> Self {
-        match join_operator {
-            _ => sqlparser::ast::JoinOperator::CrossJoin,
-        }
+    fn from(_: JoinOperator) -> Self {
+        sqlparser::ast::JoinOperator::CrossJoin
     }
 }
 impl From<Join> for sqlparser::ast::Join {
@@ -298,7 +296,7 @@ impl From<SetExpr> for sqlparser::ast::SetExpr {
                         .map(|l| sqlparser::ast::TableWithJoins::from(l.clone()))
                         .collect(),
                     lateral_views: [].to_vec(),
-                    selection: select.selection.map(|l| sqlparser::ast::Expr::from(l)),
+                    selection: select.selection.map(sqlparser::ast::Expr::from),
                     group_by: select
                         .group_by
                         .iter()
@@ -311,7 +309,7 @@ impl From<SetExpr> for sqlparser::ast::SetExpr {
                         .iter()
                         .map(|l| sqlparser::ast::Expr::from(l.clone()))
                         .collect(),
-                    having: select.having.map(|l| sqlparser::ast::Expr::from(l)),
+                    having: select.having.map(sqlparser::ast::Expr::from),
                     qualify: None,
                 }))
             }
@@ -339,7 +337,7 @@ impl From<Statement> for sqlparser::ast::Statement {
             Statement::Query(query) => {
                 sqlparser::ast::Statement::Query(Box::new(sqlparser::ast::Query {
                     body: Box::new(sqlparser::ast::SetExpr::from(query.body)),
-                    limit: query.limit.map(|l| sqlparser::ast::Expr::from(l)),
+                    limit: query.limit.map(sqlparser::ast::Expr::from),
                     with: None,
                     order_by: query
                         .order_by
@@ -429,6 +427,12 @@ pub struct Wildcard {}
 impl Wildcard {
     pub fn new() -> Self {
         Self {}
+    }
+}
+
+impl Default for Wildcard {
+    fn default() -> Self {
+        Wildcard::new()
     }
 }
 
@@ -602,7 +606,7 @@ impl TableWithJoins {
     pub fn new(ast: &sqlparser::ast::TableWithJoins) -> Self {
         let relation = TableFactor::from(ast.relation.clone());
         Self {
-            relation: relation,
+            relation,
             joins: ast
                 .joins
                 .iter()
@@ -626,10 +630,7 @@ impl From<sqlparser::ast::Ident> for Ident {
     fn from(ident: sqlparser::ast::Ident) -> Self {
         Self {
             value: ident.to_string(),
-            quote_style: match ident.quote_style {
-                None => None,
-                Some(style) => Some(style.to_string()),
-            },
+            quote_style: ident.quote_style.map(|s| s.to_string()),
         }
     }
 }
@@ -839,10 +840,7 @@ pub enum Value {
 impl From<sqlparser::ast::Value> for Value {
     fn from(value: sqlparser::ast::Value) -> Self {
         match value {
-            sqlparser::ast::Value::Number(num, long) => Self::Number(Number {
-                value: num,
-                long: long,
-            }),
+            sqlparser::ast::Value::Number(num, long) => Self::Number(Number { value: num, long }),
             sqlparser::ast::Value::SingleQuotedString(string) => Self::SingleQuotedString(string),
             sqlparser::ast::Value::DollarQuotedString(_dollar_quoted_string) => {
                 Self::NotImplemented(result_atoms::not_implemented())
@@ -1034,7 +1032,7 @@ impl Expr {
                 value: ExprEnum::InList(InList {
                     expr: Box::new(Expr::new(*expr)),
                     list: list.iter().map(|p| Expr::new(p.clone())).collect(),
-                    negated: negated,
+                    negated,
                 }),
             },
             sqlparser::ast::Expr::InSubquery {
@@ -1046,7 +1044,7 @@ impl Expr {
                 value: ExprEnum::InSubquery(InSubquery {
                     expr: Box::new(Expr::new(*expr)),
                     subquery: Box::new(Query::new(*subquery)),
-                    negated: negated,
+                    negated,
                 }),
             },
             sqlparser::ast::Expr::InUnnest {
@@ -1058,7 +1056,7 @@ impl Expr {
                 value: ExprEnum::InUnnest(InUnnest {
                     expr: Box::new(Expr::new(*expr)),
                     array_expr: Box::new(Expr::new(*array_expr)),
-                    negated: negated,
+                    negated,
                 }),
             },
             sqlparser::ast::Expr::Between {
@@ -1070,7 +1068,7 @@ impl Expr {
                 r#type: type_atoms::in_subquery(),
                 value: ExprEnum::Between(Between {
                     expr: Box::new(Expr::new(*expr)),
-                    negated: negated,
+                    negated,
                     low: Box::new(Expr::new(*low)),
                     high: Box::new(Expr::new(*high)),
                 }),
@@ -1092,12 +1090,9 @@ impl Expr {
                 r#type: type_atoms::like(),
                 value: ExprEnum::Like(Like {
                     expr: Box::new(Expr::new(*expr)),
-                    negated: negated,
+                    negated,
                     pattern: Box::new(Expr::new(*pattern)),
-                    escape_char: match escape_char {
-                        Some(c) => Some(c.to_string()),
-                        None => None,
-                    },
+                    escape_char: escape_char.map(|c| c.to_string()),
                 }),
             },
             sqlparser::ast::Expr::ILike {
@@ -1109,12 +1104,9 @@ impl Expr {
                 r#type: type_atoms::ilike(),
                 value: ExprEnum::ILike(ILike {
                     expr: Box::new(Expr::new(*expr)),
-                    negated: negated,
+                    negated,
                     pattern: Box::new(Expr::new(*pattern)),
-                    escape_char: match escape_char {
-                        Some(c) => Some(c.to_string()),
-                        None => None,
-                    },
+                    escape_char: escape_char.map(|c| c.to_string()),
                 }),
             },
             sqlparser::ast::Expr::SimilarTo {
@@ -1126,12 +1118,9 @@ impl Expr {
                 r#type: type_atoms::similar_to(),
                 value: ExprEnum::SimilarTo(SimilarTo {
                     expr: Box::new(Expr::new(*expr)),
-                    negated: negated,
+                    negated,
                     pattern: Box::new(Expr::new(*pattern)),
-                    escape_char: match escape_char {
-                        Some(c) => Some(c.to_string()),
-                        None => None,
-                    },
+                    escape_char: escape_char.map(|c| c.to_string()),
                 }),
             },
             sqlparser::ast::Expr::AnyOp(expr) => Expr {
@@ -1240,11 +1229,8 @@ impl Select {
                     }
                 })
                 .collect(),
-            from: ast.from.iter().map(|p| TableWithJoins::new(p)).collect(),
-            selection: match ast.selection {
-                Some(expr) => Some(Expr::new(expr)),
-                None => None,
-            },
+            from: ast.from.iter().map(TableWithJoins::new).collect(),
+            selection: ast.selection.map(Expr::new),
             group_by: ast
                 .group_by
                 .iter()
@@ -1255,10 +1241,7 @@ impl Select {
                 .iter()
                 .map(|expr| Expr::new(expr.clone()))
                 .collect(),
-            having: match ast.having {
-                Some(expr) => Some(Expr::new(expr)),
-                None => None,
-            },
+            having: ast.having.map(Expr::new),
         }
     }
 }
@@ -1352,10 +1335,7 @@ impl Query {
                     nulls_first: order_by_expr.nulls_first,
                 })
                 .collect(),
-            limit: match ast.limit {
-                Some(expr) => Some(Expr::new(expr)),
-                None => None,
-            },
+            limit: ast.limit.map(Expr::new),
             offset: match ast.offset {
                 Some(offset) => Some(Offset {
                     value: Expr::new(offset.value),

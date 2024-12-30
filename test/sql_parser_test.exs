@@ -1,8 +1,6 @@
 defmodule SqlParserTest do
   use ExUnit.Case
   doctest SqlParser
-  alias SqlParser.Expr
-  alias SqlParser.Ident
 
   # test "to_sql" do
   #   # WHERE b.a = d
@@ -26,7 +24,7 @@ defmodule SqlParserTest do
                  %SqlParser.TableWithJoins{
                    relation: %SqlParser.Table{
                      name: %SqlParser.ObjectName{
-                       names: [%Ident{quote_style: nil, value: "a"}]
+                       names: [%SqlParser.Ident{quote_style: nil, value: "a"}]
                      }
                    }
                  }
@@ -55,7 +53,7 @@ defmodule SqlParserTest do
                       joins: [],
                       relation: %SqlParser.Table{
                         name: %SqlParser.ObjectName{
-                          names: [%Ident{quote_style: nil, value: "a"}]
+                          names: [%SqlParser.Ident{quote_style: nil, value: "a"}]
                         }
                       }
                     }
@@ -68,9 +66,9 @@ defmodule SqlParserTest do
                 },
                 order_by: [
                   %SqlParser.OrderByExpr{
-                    expr: %Expr{
+                    expr: %SqlParser.Expr{
                       type: :identifier,
-                      value: %Ident{quote_style: nil, value: "f"}
+                      value: %SqlParser.Ident{quote_style: nil, value: "f"}
                     },
                     asc: nil,
                     nulls_first: nil
@@ -119,7 +117,7 @@ defmodule SqlParserTest do
 
       assert %SqlParser.Query{
                body: %SqlParser.Select{
-                 selection: %Expr{
+                 selection: %SqlParser.Expr{
                    type: :binary_op,
                    value: %SqlParser.BinaryOp{
                      left: _,
@@ -188,21 +186,32 @@ defmodule SqlParserTest do
   end
 
   @exprs %{
-    %Expr{
+    %SqlParser.Expr{
       type: :binary_op,
       value: %SqlParser.BinaryOp{
-        left: %Expr{type: :identifier, value: %Ident{quote_style: nil, value: "a"}},
+        left: %SqlParser.Expr{
+          type: :identifier,
+          value: %SqlParser.Ident{quote_style: nil, value: "a"}
+        },
         op: :eq,
-        right: %Expr{type: :value, value: {:number, "1", false}}
+        right: %SqlParser.Expr{
+          type: :value,
+          value: %SqlParser.Number{
+            long: false,
+            value: "18446744073709551616.18446744073709551616"
+          }
+        }
       }
     } => "a = 18446744073709551616.18446744073709551616",
-    %Expr{
+    %SqlParser.Expr{
       type: :is_null,
-      value: %Expr{type: :identifier, value: %Ident{quote_style: nil, value: "c"}}
+      value: %SqlParser.Expr{
+        type: :identifier,
+        value: %SqlParser.Ident{quote_style: nil, value: "c"}
+      }
     } => "c IS NULL"
   }
 
-  @tag :skip
   test "expr work" do
     for {expected_selection, expr} <- @exprs do
       assert {:ok, [query]} = SqlParser.parse("SELECT c as b from a WHERE #{expr}")
